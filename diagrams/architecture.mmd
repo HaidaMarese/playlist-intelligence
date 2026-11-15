@@ -1,0 +1,39 @@
+flowchart TD
+    Request["Listener enters a playlist request"] --> Validate{"Is the request valid?"}
+
+    Validate -->|No| Error["Display a validation message"]
+    Validate -->|Yes| Retrieve["Retrieve the activity guide"]
+
+    Guide["data/curation_guides.md"] --> Retrieve
+    Retrieve --> Rank["Filter and rank matching songs"]
+    Catalog["data/songs.csv"] --> Rank
+
+    Rank --> Shortage{"Studying request with too few matches?"}
+    Shortage -->|No| Matches{"Are any songs available?"}
+    Shortage -->|Yes| Approval{"Listener approves other genres?"}
+
+    Approval -->|No or no input| Matches
+    Approval -->|Yes| Broaden["Filter and rank across genres using the same mood and energy rules"]
+
+    Catalog --> Broaden
+    Retrieve --> Broaden
+    Broaden --> Matches
+
+    Matches -->|No| Empty["Display a no-matches message"]
+    Matches -->|Yes| UseAI{"Is AI enabled?"}
+
+    UseAI -->|No| Display["Display songs, scores, explanations, and sources"]
+    UseAI -->|Yes| Prompt["Build a baseline or specialized prompt"]
+
+    Prompt --> Gemini["Gemini generates explanations from retrieved evidence"]
+    Gemini -->|API error| Fallback["Display a fallback notice and use catalog explanations"]
+    Gemini -->|Response| Verify{"Valid JSON, song IDs, completeness, and explanation length?"}
+
+    Verify -->|No| Fallback
+    Verify -->|Yes| Display
+    Fallback --> Display
+
+    Evaluation["evaluate.py runs predefined CLI cases"] -.-> Request
+    Tests["pytest automated tests"] -.-> Rank
+    Tests -.-> Approval
+    Tests -.-> Verify
