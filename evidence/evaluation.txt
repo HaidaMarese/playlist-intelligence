@@ -1,0 +1,14 @@
+Playlist Intelligence - CLI Evaluation
+Live Gemini calls: disabled
+
+PASS | Workout recommendations
+PASS | Exact studying recommendations
+PASS | Declined genre broadening
+PASS | Approved genre broadening
+PASS | Blank request guardrail
+PASS | Invalid count guardrail
+PASS | Unknown genre guardrail
+PASS | AI requires a request
+
+Summary: 8/8 cases passed
+Pass rate: 100%

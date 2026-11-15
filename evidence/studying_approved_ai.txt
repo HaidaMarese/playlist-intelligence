@@ -1,0 +1,27 @@
+Loaded songs: 18
+
+Playlist request: 3 calm jazz songs for studying
+Found 1 matching track(s) out of 3 requested.
+Include other genres while keeping the studying energy and mood rules? [y/N]: Other genres approved by the listener.
+Found 3 track(s) after broadening the search.
+Explanation mode: Gemini
+Rank  Song                      Artist                Score    Reasons
+----  ------------------------  --------------------  -------  ------------------------------------------
+1     Coffee Shop Stories       Slow Stereo           2.98     This jazz track fits the studying request
+                                                               with a relaxed mood and an energy of 0.37,
+                                                               matching the target studying energy of
+                                                               0.35. [Source:
+                                                               data/curation_guides.md#studying; catalog
+                                                               ID: 7]
+2     Focus Flow                LoRoom                1.95     As an approved alternative genre, this
+                                                               lofi track supports studying with a
+                                                               focused mood and an energy of 0.4, closely
+                                                               matching the target energy. [Source:
+                                                               data/curation_guides.md#studying; catalog
+                                                               ID: 9]
+3     Library Rain              Paper Lanterns        1.00     This lofi track serves as an approved
+                                                               alternative genre for studying, featuring
+                                                               a chill mood and an energy of 0.35 that
+                                                               exactly meets the target energy. [Source:
+                                                               data/curation_guides.md#studying; catalog
+                                                               ID: 4]
