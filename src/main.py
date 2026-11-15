@@ -1,26 +1,27 @@
 """
-Command line runner for the Music Recommender Simulation.
+Command-line runner for Playlist Intelligence.
 
 Loads the song catalog and displays ranked recommendations for three
-taste profiles. Optional Challenge 2 lets users choose a scoring mode
-with the --mode command-line argument.
+taste profiles or a playlist request.
 """
 
 import argparse
 import textwrap
 
+from .curator import rank_request
 from .recommender import SCORING_MODES, load_songs, recommend_songs
 
 
 def main() -> None:
+    """Run the recommendation demo or process a playlist request."""
     parser = argparse.ArgumentParser(
-        description="Rank songs for three taste profiles."
+        description="Rank songs for taste profiles or a playlist request."
     )
     parser.add_argument(
         "--mode",
         choices=SCORING_MODES,
         default="genre-first",
-        help="Choose a scoring mode for Optional Challenge 2 (default: genre-first).",
+        help="Choose a scoring mode (default: genre-first).",
     )
     parser.add_argument(
         "--diversity",
@@ -37,10 +38,24 @@ def main() -> None:
         action="store_true",
         help="Use popularity, decade, detailed mood, instrumentalness, and vocal language.",
     )
+    parser.add_argument(
+        "--request",
+        help="Rank songs for a playlist request.",
+    )
     args = parser.parse_args()
 
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
+
+    if args.request is not None:
+        try:
+            recommendations = rank_request(args.request, songs)
+        except ValueError as error:
+            parser.error(str(error))
+
+        print(f"\nPlaylist request: {args.request}")
+        print_recommendation_table(recommendations)
+        return
 
     profiles = {
         "High-Energy Pop": {
@@ -92,7 +107,9 @@ def main() -> None:
         if args.table:
             print_recommendation_table(recommendations)
         else:
-            for rank, (song, score, explanation) in enumerate(recommendations, start=1):
+            for rank, (song, score, explanation) in enumerate(
+                recommendations, start=1
+            ):
                 print(f"{rank}. {song['title']} | Score: {score:.2f}")
                 print(f"   Reasons: {explanation}")
 
@@ -109,24 +126,59 @@ def print_recommendation_table(recommendations) -> None:
         ).rstrip()
 
     print(format_row(headers))
-    print(format_row(("-" * columns[0], "-" * columns[1], "-" * columns[2], "-" * columns[3], "-" * columns[4])))
+    print(format_row(tuple("-" * width for width in columns)))
 
-    for rank, (song, score, explanation) in enumerate(recommendations, start=1):
-        song_lines = textwrap.wrap(str(song["title"]), width=columns[1], break_long_words=False, break_on_hyphens=False) or [""]
-        artist_lines = textwrap.wrap(str(song["artist"]), width=columns[2], break_long_words=False, break_on_hyphens=False) or [""]
-        reason_lines = textwrap.wrap(explanation, width=columns[4], break_long_words=False, break_on_hyphens=False) or [""]
-        row_height = max(len(song_lines), len(artist_lines), len(reason_lines))
+    for rank, (song, score, explanation) in enumerate(
+        recommendations, start=1
+    ):
+        song_lines = textwrap.wrap(
+            str(song["title"]),
+            width=columns[1],
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [""]
+
+        artist_lines = textwrap.wrap(
+            str(song["artist"]),
+            width=columns[2],
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [""]
+
+        reason_lines = textwrap.wrap(
+            explanation,
+            width=columns[4],
+            break_long_words=False,
+            break_on_hyphens=False,
+        ) or [""]
+
+        row_height = max(
+            len(song_lines),
+            len(artist_lines),
+            len(reason_lines),
+        )
 
         for line_index in range(row_height):
             rank_value = rank if line_index == 0 else ""
             score_value = f"{score:.2f}" if line_index == 0 else ""
-            print(format_row((
-                rank_value,
-                song_lines[line_index] if line_index < len(song_lines) else "",
-                artist_lines[line_index] if line_index < len(artist_lines) else "",
-                score_value,
-                reason_lines[line_index] if line_index < len(reason_lines) else "",
-            )))
+
+            print(
+                format_row(
+                    (
+                        rank_value,
+                        song_lines[line_index]
+                        if line_index < len(song_lines)
+                        else "",
+                        artist_lines[line_index]
+                        if line_index < len(artist_lines)
+                        else "",
+                        score_value,
+                        reason_lines[line_index]
+                        if line_index < len(reason_lines)
+                        else "",
+                    )
+                )
+            )
 
 
 if __name__ == "__main__":
