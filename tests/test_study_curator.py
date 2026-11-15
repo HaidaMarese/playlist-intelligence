@@ -114,3 +114,45 @@ def test_no_eligible_tracks_returns_empty_result(study_songs):
     )
 
     assert results == []
+
+
+def test_instrumental_preference_breaks_ties_after_relevance():
+    """Prefer instrumentalness among equal scores before truncating."""
+    songs = [
+        {
+            "id": 1,
+            "title": "Lower Instrumentalness",
+            "artist": "Artist A",
+            "genre": "lofi",
+            "mood": "chill",
+            "energy": 0.35,
+            "instrumentalness": 0.10,
+        },
+        {
+            "id": 2,
+            "title": "Higher Instrumentalness",
+            "artist": "Artist B",
+            "genre": "lofi",
+            "mood": "chill",
+            "energy": 0.35,
+            "instrumentalness": 0.90,
+        },
+        {
+            "id": 3,
+            "title": "Stronger Mood Match",
+            "artist": "Artist C",
+            "genre": "lofi",
+            "mood": "focused",
+            "energy": 0.35,
+            "instrumentalness": 0.00,
+        },
+    ]
+
+    results = rank_study_request(
+        "2 calm lofi songs for studying",
+        songs,
+    )
+
+    assert [song["id"] for song, _, _ in results] == [3, 2]
+    assert results[0][1] > results[1][1]
+    assert "instrumentalness 0.90" in results[1][2]

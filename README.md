@@ -16,8 +16,8 @@ tracks using the retrieved evidence.
 
 When a studying request has too few exact matches, the application asks
 before including other genres. Output validation and catalog-based
-fallback explanations help the application handle invalid responses and
-API failures.
+fallback explanations help it handle invalid model responses and API
+failures.
 
 ## Original Project and Extensions
 
@@ -33,6 +33,7 @@ Project 4 adds:
 - Retrieval from the song catalog and custom activity guide.
 - Gemini explanations grounded in retrieved evidence.
 - Human approval before broadening a studying search.
+- Instrumentalness as a tie-break preference for studying.
 - Model-output validation and API-error fallback.
 - Few-shot specialized explanations.
 - Automated tests, a CLI evaluation harness, and a live prompt comparison.
@@ -58,15 +59,24 @@ tracks using the existing scoring function.
 Workout requests favor energizing tracks. Studying requests preserve the
 requested genre and favor focused tracks.
 
+For studying requests, higher instrumentalness breaks ties between
+equally scored tracks when the retrieved guide requests that preference.
+Genre, mood, and energy relevance determine the primary score.
+
+Instrumentalness uses the catalog's 0–1 values. Missing values default
+to `0.0`. Equal scores and equal instrumentalness preserve catalog order.
+
 ### Human Approval
 
 If a studying request has too few exact matches, the application asks
 whether other genres may be included.
 
-Only an explicit `y` or `yes` authorizes broadening. Declining, pressing
-Enter, or reaching end-of-input preserves the requested genre.
+An explicit `y` or `yes`, ignoring capitalization and surrounding spaces,
+authorizes broadening. Declining, pressing Enter, or reaching end-of-input
+preserves the requested genre.
 
-The broader search retains the studying mood and energy restrictions.
+The broader search retains the studying mood and energy restrictions,
+including the instrumentalness tie-break preference.
 
 ### Grounded Generation
 
@@ -75,15 +85,28 @@ evidence, and retrieved activity guidance.
 
 Python selects the tracks. Gemini writes their explanations.
 
-The application verifies the returned JSON, song IDs, completeness,
-uniqueness, and explanation length. It displays an identified
-catalog-based fallback when a handled API error or invalid response
-prevents successful generation.
+The application verifies:
+
+- JSON list format.
+- Expected integer song IDs.
+- Unique song IDs.
+- An explanation for every selected track.
+- Explanation length between 1 and 50 words.
+
+It displays an identified catalog-based fallback when a handled API
+error or invalid response prevents successful generation.
+
+These structural checks do not establish the factual accuracy of every
+generated sentence.
 
 ### Specialized Explanations
 
 With `--ai --specialized`, the prompt adds illustrative few-shot examples.
-It requests concise explanations with labeled mood and energy evidence.
+It requests explanations of at most 25 words with explicit `Mood:` and
+`Energy:` labels.
+
+The shared validator permits up to 50 words. Compliance with the
+specialized 25-word target is measured in the prompt comparison.
 
 ## Architecture
 
@@ -108,7 +131,7 @@ The original three-profile demo is a separate CLI path.
 | `src/main.py` | CLI, approval prompts, generation orchestration, and output |
 | `src/recommender.py` | Catalog loading, scoring, and ranking |
 | `src/curator.py` | Workout requests and activity routing |
-| `src/study_curator.py` | Studying rules and approved genre broadening |
+| `src/study_curator.py` | Studying filters, tie-breaking, and approved genre broadening |
 | `src/guide_retriever.py` | Activity-guide retrieval |
 | `src/llm_client.py` | Gemini generation and response validation |
 | `src/prompts.py` | Baseline and specialized prompts |
@@ -171,6 +194,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
+Development verification has been performed on Windows. Other platforms
+still need a complete setup check.
+
 ### 3. Confirm the Interpreter
 
 ```cmd
@@ -189,7 +215,7 @@ python -m pip install -r requirements.txt
 
 ### 5. Run Without Gemini
 
-Run all commands from the repository root.
+Run commands from the repository root.
 
 ```cmd
 python -m src.main --request "Give me 3 upbeat songs for a workout"
@@ -228,6 +254,8 @@ export GEMINI_MODEL="gemini-3.5-flash-lite"
 Replace the placeholder with your private key. These settings apply to
 the current terminal session.
 
+Keep the key out of source files, screenshots, logs, and Git commits.
+
 `gemini-3.5-flash-lite` was verified in the recorded executions. Model
 access, quotas, and availability depend on the API account and service.
 
@@ -251,7 +279,7 @@ Specialized prompt:
 python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --specialized
 ```
 
-Approved studying alternatives:
+Studying request with an approval decision:
 
 ```cmd
 python -m src.main --request "3 calm jazz songs for studying" --ai
@@ -295,8 +323,14 @@ The parser currently accepts the documented request patterns.
 
 ## Reproducible Execution Evidence
 
-The following excerpts come from observed executions. Table columns are
-condensed here for readability. Full recorded logs are linked below.
+The following excerpts come from observed executions. Table columns and
+wrapped lines are condensed for readability. Full recorded logs are
+linked below.
+
+The studying excerpts were recorded before the instrumentalness
+tie-break was added. They document the observed approval and generation
+behavior at that stage. The current studying output also includes
+instrumentalness evidence in catalog-based explanations.
 
 Live explanations can vary across runs.
 
@@ -396,8 +430,9 @@ This lofi track serves as an approved alternative genre for studying, featuring 
 ```
 
 The energy target comes from the studying guide. The first explanation's
-word “matching” describes a nearby value, rather than numerical equality.
-This is an observed wording limitation discussed in the model card.
+word “matching” describes a nearby value. Numerical equality would
+require `0.35`. This observed wording limitation is discussed in the
+model card.
 
 ### Guardrail Example — Blank Input
 
@@ -414,7 +449,7 @@ main.py: error: Enter a playlist request, such as '3 upbeat songs for a workout'
 
 ### API Failure Example
 
-During testing, a live request returned:
+During testing, a live request returned this error excerpt:
 
 ```text
 AI explanation unavailable. Showing catalog-based explanations.
@@ -436,14 +471,14 @@ The application then displayed the verified catalog recommendations.
 
 ### Automated Tests
 
-Latest verified result after integrating specialized prompting:
+Latest verified result after implementing instrumentalness tie-breaking:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-38 passed in 0.93s
+39 passed in 1.19s
 ```
 
 Coverage includes:
@@ -456,6 +491,12 @@ Coverage includes:
 - Approved and declined broader searches.
 - Missing approval input.
 - Model JSON, IDs, duplicates, completeness, and length.
+- Instrumentalness breaking equal-score ties before results are truncated.
+- Primary relevance taking priority over instrumentalness.
+
+The instrumentalness test uses controlled tracks. It confirms that a
+stronger mood match ranks first and that higher instrumentalness selects
+between two otherwise equally scored candidates.
 
 ### CLI Evaluation Harness
 
@@ -480,9 +521,9 @@ Summary: 8/8 cases passed
 Pass rate: 100%
 ```
 
-The pass rate applies to these eight predefined scenarios. It does not
-measure listener satisfaction or the factual accuracy of every generated
-sentence.
+The pass rate applies to these eight predefined scenarios. Listener
+satisfaction and the factual accuracy of every generated sentence
+require separate evaluation.
 
 ### Human Review of Observed Behavior
 
@@ -509,8 +550,11 @@ playlist contained Neon Tide, Storm Runner, and Gym Hero.
 A guide-threshold test also confirms that changing the retrieved minimum
 energy changes which tracks are eligible.
 
-This improved alignment with the project's activity rules. Listener
-enjoyment has not been measured.
+For studying, the retrieved guide activates an instrumentalness
+preference when primary scores are equal.
+
+These changes improve alignment with the project's activity rules.
+Listener enjoyment has not been measured.
 
 ### Agentic Decision Workflow
 
@@ -520,8 +564,8 @@ count, requests approval when needed, and searches again after approval.
 The decision chain is implemented in Python. Human approval controls
 genre broadening.
 
-Actions, observed results, and committed execution logs are documented in
-[ai_interactions.md](ai_interactions.md).
+Actions, observed results, and committed execution logs are documented
+in [ai_interactions.md](ai_interactions.md).
 
 ### Specialization
 
@@ -560,7 +604,8 @@ The verified run passed **8/8 cases**.
 | Keep selection in Python | Provides reproducible ranking and constraint handling |
 | Use Gemini for explanations | Adds readable explanations with service dependency and wording risks |
 | Require approval to broaden genre | Gives listeners control over changing an explicit preference |
-| Validate model output | Rejects structural errors while leaving semantic accuracy for further evaluation |
+| Use instrumentalness for equal scores | Applies the guide's preference while keeping primary relevance first |
+| Validate model output | Rejects structural errors while semantic accuracy needs further evaluation |
 | Preserve catalog fallback | Keeps recommendations available during handled generation failures |
 | Separate live and simulated checks | Supports repeatable tests alongside recorded live generation |
 
@@ -610,10 +655,12 @@ in [model_card.md](model_card.md) and
 - The catalog is small and contains illustrative metadata.
 - Request parsing supports specific documented patterns.
 - Activity moods and thresholds reflect design assumptions.
+- Guide parsing depends on the documented phrases and section headings.
 - Structural validation does not verify every generated factual claim.
 - Live generation can fail or vary between runs.
-- The studying guide's instrumental preference still needs implementation
-  or revision.
+- Instrumentalness affects only equal primary scores, so its influence
+  may be limited with the current catalog.
+- Missing instrumentalness values default to `0.0`.
 - Network transport exceptions need additional safe handling.
 - Dependencies are currently unpinned. Exact package-version reproduction
   has not yet been established.
@@ -627,7 +674,9 @@ with an upbeat mood, and a readable explanation can contain imprecise
 wording.
 
 I learned to inspect outputs, revise rules, test failure cases, and
-preserve evidence of the system's behavior.
+preserve evidence of the system's behavior. Adding instrumentalness
+tie-breaking also showed how a secondary preference can affect selection
+while primary relevance remains the main ranking criterion.
 
 The graded responsible-AI reflection, accepted and revised AI
 suggestions, limitations, misuse analysis, and testing surprises are in
@@ -645,11 +694,11 @@ The planned 5–7 minute Engineer's Pitch follows four topics:
 ### Portfolio Reflection
 
 This project shows my approach to building understandable AI systems.
-I extended an existing Python recommender, integrated retrieved
-guidance and model-generated explanations, and verified key behaviors
-with automated tests and recorded executions. I also added listener
-approval and fallback behavior so the system handles uncertainty and
-failures explicitly.
+I extended an existing Python recommender, integrated retrieved guidance
+and model-generated explanations, and verified key behaviors with
+automated tests and recorded executions. I also added listener approval
+and fallback behavior so the system handles uncertainty and failures
+explicitly.
 
 [GitHub repository](https://github.com/HaidaMarese/playlist-intelligence)
 

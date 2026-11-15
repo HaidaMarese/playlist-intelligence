@@ -87,6 +87,19 @@ def rank_study_request(request, songs, *, allow_other_genres=False):
         and song["mood"].strip().casefold() in suitable_moods
     ]
 
+    prefer_instrumental = (
+        "prefer instrumental tracks when other preferences are equal."
+        in guide_text.casefold()
+    )
+
+    if prefer_instrumental:
+        # The shared ranker preserves input order for equal scores.
+        # Preordering candidates therefore supplies the tie-break rule.
+        candidates.sort(
+            key=lambda song: song.get("instrumentalness", 0.0),
+            reverse=True,
+        )
+
     preferences = {
         "favorite_genre": requested_genre,
         "favorite_mood": "focused",
@@ -107,12 +120,20 @@ def rank_study_request(request, songs, *, allow_other_genres=False):
         else:
             genre_status = "approved alternative genre"
 
+        instrumental_evidence = ""
+        if prefer_instrumental:
+            instrumental_evidence = (
+                f"instrumentalness {song.get('instrumentalness', 0.0):.2f} "
+                "(tie-break preference); "
+            )
+
         results.append(
             (
                 song,
                 score,
                 f"{explanation}; studying guide match "
                 f"(energy {song['energy']:.2f}, mood {song['mood']}); "
+                f"{instrumental_evidence}"
                 f"genre status: {genre_status}; "
                 f"source: {guide['source']}",
             )
