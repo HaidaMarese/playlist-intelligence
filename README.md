@@ -1,364 +1,664 @@
-# 🎵 Music Recommender Simulation
+# 🎧 Playlist Intelligence
+
+An applied AI music recommender that combines transparent Python ranking,
+retrieved activity guidance, and Gemini-generated explanations.
+
+Built for **CodePath AI110 — Project 4: Applied AI System**.
 
 ## Project Summary
 
-VibeFinder 1.0 recommends songs based on a listener's favorite genre,
-favorite mood, and target energy. It compares those preferences with song
-attributes in a CSV catalog, ranks the songs by score, and explains what
-contributed to each recommendation.
+Playlist Intelligence helps listeners find songs that fit a workout or
+studying session and understand why those tracks were recommended.
 
-The catalog contains 18 songs, including 10 starter songs and eight
-fictional additions. Optional flags let users include advanced song
-features, select a scoring mode, encourage artist diversity, or display
-the results as a table.
+The application searches an 18-song catalog, applies rules from a custom
+activity guide, and ranks matching tracks. Gemini explains the selected
+tracks using the retrieved evidence.
 
----
+When a studying request has too few exact matches, the application asks
+before including other genres. Output validation and catalog-based
+fallback explanations help the application handle invalid responses and
+API failures.
 
-## How The System Works
+## Original Project and Extensions
 
-Real-world recommenders can use collaborative filtering to suggest items
-that people with similar listening habits enjoy. They can also use
-content-based filtering to compare item features with a listener's
-preferences. VibeFinder uses content-based filtering with taste profiles
-defined in the program.
+This project extends **Project 3: Music Recommender Simulation**, named
+**VibeFinder 1.0**. The original application ranked songs for three taste
+profiles using genre, mood, and energy, then displayed scores and
+explanations. Optional features included advanced metadata, two scoring
+modes, artist diversity, and table output.
 
-- **Song.** The original CSV fields are `id`, `title`, `artist`, `genre`,
-  `mood`, `energy`, `tempo_bpm`, `valence`, `danceability`, and `acousticness`.
-  The default score uses genre, mood, and energy. The artist diversity
-  option uses `artist` during ranking. Advanced scoring uses five
-  additional fields documented below.
-- **UserProfile.** The default scoring rule reads `favorite_genre`,
-  `favorite_mood`, and `target_energy` from the profile.
-- **Recommender.** The recommender scores each song, ranks the candidates,
-  and returns the top five with an explanation for each score.
+Project 4 adds:
 
-### Taste Profiles
+- Workout and studying playlist requests.
+- Retrieval from the song catalog and custom activity guide.
+- Gemini explanations grounded in retrieved evidence.
+- Human approval before broadening a studying search.
+- Model-output validation and API-error fallback.
+- Few-shot specialized explanations.
+- Automated tests, a CLI evaluation harness, and a live prompt comparison.
 
-| Profile | Favorite genre | Favorite mood | Target energy |
-|---|---|---|---:|
-| High-Energy Pop | `pop` | `happy` | 0.85 |
-| Chill Lofi | `lofi` | `chill` | 0.25 |
-| Deep Intense Rock | `rock` | `intense` | 0.90 |
+The original Project 3 files and commit history were copied into this
+dedicated repository.
 
-Storm Runner matches the Deep Intense Rock profile's genre and mood.
-Its energy of `0.91` is `0.01` above the target. Library Rain matches
-the Chill Lofi profile's genre and mood. Its energy of `0.35` is `0.10`
-above that profile's target.
+## How It Works
 
-### Algorithm Recipe
+### Retrieval and Ranking
 
-The default Genre-First run uses these rules.
+The application retrieves activity guidance from
+`data/curation_guides.md` and song records from `data/songs.csv`.
 
-1. Add **2.0 points** for an exact genre match.
-2. Add **1.0 point** for an exact mood match.
-3. Add `1.0 - abs(song_energy - target_energy)` for energy similarity.
-   Songs closer to the target earn more points. An exact energy match
-   earns **1.0 point**.
-4. Sort the songs from highest to lowest score and show the top five.
-   Songs with equal scores keep their original CSV order.
+Python applies the retrieved mood and energy rules, then ranks eligible
+tracks using the existing scoring function.
 
-The maximum base score is **4.0** before advanced feature contributions
-or artist diversity adjustments. In Genre-First mode, the two-point
-genre bonus can put a song from the preferred genre above one that better
-matches the requested mood. Gym Hero earns the genre bonus for `pop`,
-while Rooftop Lights earns zero genre points for its `indie pop` label.
+| Activity | Target energy | Energy restriction | Suitable moods |
+|---|---:|---|---|
+| Workout | 0.90 | Minimum 0.75 | happy, energizing, intense, aggressive, playful, uplifting |
+| Studying | 0.35 | Maximum 0.50 | chill, focused, relaxed, peaceful |
 
-**Data flow**
+Workout requests favor energizing tracks. Studying requests preserve the
+requested genre and favor focused tracks.
 
-`Song catalog + taste profile → score each song and record reasons → rank candidates → display the top five`
+### Human Approval
 
----
+If a studying request has too few exact matches, the application asks
+whether other genres may be included.
 
-## Getting Started
+Only an explicit `y` or `yes` authorizes broadening. Declining, pressing
+Enter, or reaching end-of-input preserves the requested genre.
 
-### Setup
+The broader search retains the studying mood and energy restrictions.
 
-Run these commands from the project folder on Windows.
+### Grounded Generation
 
-1. Create a virtual environment if you need one.
+With `--ai`, Gemini receives the request, selected tracks, ranking
+evidence, and retrieved activity guidance.
 
-   ```cmd
-   py -3 -m venv .venv
-   ```
+Python selects the tracks. Gemini writes their explanations.
 
-2. Activate it using the command for your terminal.
+The application verifies the returned JSON, song IDs, completeness,
+uniqueness, and explanation length. It displays an identified
+catalog-based fallback when a handled API error or invalid response
+prevents successful generation.
 
-   **Command Prompt**
+### Specialized Explanations
 
-   ```cmd
-   .venv\Scripts\activate.bat
-   ```
+With `--ai --specialized`, the prompt adds illustrative few-shot examples.
+It requests concise explanations with labeled mood and energy evidence.
 
-   **PowerShell**
+## Architecture
 
-   ```powershell
-   .\.venv\Scripts\Activate.ps1
-   ```
+The required Mermaid source is saved in
+[diagrams/architecture.mmd](diagrams/architecture.mmd).
 
-3. Install the dependencies.
+The diagram shows the Project 4 playlist-request workflow:
 
-   ```cmd
-   python -m pip install --upgrade pip
-   python -m pip install -r requirements.txt
-   ```
+- Input validation and guide retrieval.
+- Catalog filtering and ranking.
+- Listener approval and broader retrieval.
+- Baseline or specialized generation.
+- Output verification, fallback, and display.
+- Connections to the evaluation harness and automated tests.
 
-4. Run the app.
+The original three-profile demo is a separate CLI path.
 
-   ```cmd
-   python -m src.main
-   ```
+## Project Structure
 
-### Optional Challenge 1 — Advanced Song Features
-
-Use `--advanced` to include five additional fields in scoring. All 18
-songs have values for these fields. The values are illustrative metadata
-for the simulation.
-
-| CSV field | Contribution to the advanced score |
+| Path | Responsibility |
 |---|---|
-| `popularity` | Adds points based on a popularity value from 0 to 100. |
-| `release_decade` | Adds a bonus when the release decade matches the profile's preference. |
-| `detailed_mood` | Adds a bonus when the more specific mood label matches the profile's preference. |
-| `instrumentalness` | Adds similarity points based on how close the song's 0–1 value is to the profile's target. |
-| `vocal_language` | Adds a bonus when the vocal-language label matches the profile's preference. The catalog uses `Instrumental` for tracks tagged without vocals. |
+| `src/main.py` | CLI, approval prompts, generation orchestration, and output |
+| `src/recommender.py` | Catalog loading, scoring, and ranking |
+| `src/curator.py` | Workout requests and activity routing |
+| `src/study_curator.py` | Studying rules and approved genre broadening |
+| `src/guide_retriever.py` | Activity-guide retrieval |
+| `src/llm_client.py` | Gemini generation and response validation |
+| `src/prompts.py` | Baseline and specialized prompts |
+| `data/songs.csv` | Existing 18-song catalog |
+| `data/curation_guides.md` | Custom activity guidance |
+| `tests/` | Automated behavior tests |
+| `evaluate.py` | Predefined CLI evaluation cases |
+| `compare_prompts.py` | Live baseline and specialization comparison |
+| `diagrams/architecture.mmd` | Mermaid architecture source |
+| `evidence/` | Recorded outputs and comparison results |
+| `model_card.md` | Responsible-AI reflection and evaluation analysis |
+| `ai_interactions.md` | Development history and workflow traces |
 
-```cmd
-python -m src.main --advanced
-python -m src.main --advanced --mode energy-focused --diversity --table
+## Setup Instructions
+
+### Requirements
+
+Development was verified with **Python 3.13.9 on Windows**.
+
+The dependency file contains:
+
+```text
+pandas
+pytest
+streamlit
+google-genai
 ```
 
-For Chill Lofi, Midnight Coding moved from **#2 at 3.83** in the default
-run to **#1 at 4.81** with `--advanced`. Its explanation showed
-contributions from all five fields. A separate check held the profile
-fixed and changed one field at a time on a copy of Midnight Coding.
-Each of the five changes affected the score independently.
+The current interface is a command-line application.
 
-The combined command also worked. Midnight Coding ranked **#1 at 4.64**,
-and Focus Flow ranked **#4 at 2.99** with `artist diversity penalty (-0.50)`
-visible in the table.
-
-See the [AI Interactions Log](ai_interactions.md) for the prompts and
-individual feature checks.
-
-### Optional Challenge 2 — Multiple Scoring Modes
-
-The app defaults to Genre-First. Select Energy-Focused with `--mode` to
-give energy similarity more weight. Both modes use the same base scoring
-formula with different weights.
-
-| Mode | Genre weight | Mood weight | Energy weight |
-|---|---:|---:|---:|
-| Genre-First (default) | 2.0 | 1.0 | 1.0 |
-| Energy-Focused | 1.0 | 1.0 | 2.0 |
+### 1. Clone the Repository
 
 ```cmd
-python -m src.main
-python -m src.main --mode energy-focused
+git clone https://github.com/HaidaMarese/playlist-intelligence.git
+cd playlist-intelligence
 ```
 
-For Chill Lofi, Focus Flow ranks third in Genre-First mode. In
-Energy-Focused mode, Spacewalk Thoughts moves from fourth to third.
-
-### Optional Challenge 3 — Artist Diversity
-
-Use `--diversity` to apply a **0.50-point penalty** when a candidate's
-artist already appears in the selected recommendations. The app selects
-one song at a time using the adjusted scores. The penalty applies once
-per candidate and appears in the explanation. A repeat artist can still
-appear if the adjusted score is high enough.
+### 2. Create a Virtual Environment
 
 ```cmd
-python -m src.main --diversity
-python -m src.main --mode energy-focused --diversity
+py -3.13 -m venv .venv
 ```
 
-For Chill Lofi, Midnight Coding was selected before Focus Flow. Both
-songs are by LoRoom, so Focus Flow received the penalty in both modes.
-
-| Scoring mode | Focus Flow without diversity | Focus Flow with diversity |
-|---|---|---|
-| Genre-First | Rank 3, score 2.85 | Rank 3, score 2.35 |
-| Energy-Focused | Rank 4, score 2.70 | Rank 4, score 2.20 |
-
-Both diversity runs displayed `artist diversity penalty (-0.50)` in
-Focus Flow's explanation.
-
-### Optional Challenge 4 — Visual Summary Table
-
-Use `--table` to display **Rank**, **Song**, **Artist**, **Score**, and
-**Reasons** in aligned columns. Long explanations wrap within the Reasons
-column. The default command uses the original list format. Both formats
-display the same rankings and scores for the selected options.
+Activate it in Windows Command Prompt:
 
 ```cmd
-python -m src.main --table
-python -m src.main --mode energy-focused --diversity --table
+.venv\Scripts\activate.bat
 ```
 
-I verified the table for all three profiles. In the Energy-Focused run
-with artist diversity and table output, Focus Flow ranked fourth for
-Chill Lofi at **2.20**. Its wrapped explanation included
-`artist diversity penalty (-0.50)`.
+For PowerShell:
 
-### Running Tests
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
 
-Run the starter tests from the project folder. If your virtual environment
-needs `pytest`, install it with `python -m pip install pytest`.
+For macOS or Linux, create and activate it using:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Confirm the Interpreter
 
 ```cmd
-python -m pytest
+python -c "import sys; print(sys.executable); print(sys.prefix != sys.base_prefix)"
 ```
 
-Both starter tests in `tests/test_recommender.py` passed after the advanced
-song features update.
+The path should point inside the project's `.venv`, and the second line
+should print `True`.
 
----
+### 4. Install Dependencies
 
-## Sample Recommendation Output
+```cmd
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
-Running `python -m src.main` produced the following results in the default
-list format, with Genre-First weights and the optional scoring adjustments
-disabled.
+### 5. Run Without Gemini
+
+Run all commands from the repository root.
+
+```cmd
+python -m src.main --request "Give me 3 upbeat songs for a workout"
+python -m src.main --request "3 calm lofi songs for studying"
+python -m src.main --request "3 calm jazz songs for studying"
+```
+
+These commands use catalog-based explanations and require no API key.
+
+### 6. Configure Gemini
+
+Create or use an API key in
+[Google AI Studio](https://aistudio.google.com/apikey).
+
+In Windows Command Prompt:
+
+```cmd
+set "GEMINI_API_KEY=YOUR_API_KEY"
+set "GEMINI_MODEL=gemini-3.5-flash-lite"
+```
+
+In PowerShell:
+
+```powershell
+$env:GEMINI_API_KEY = "YOUR_API_KEY"
+$env:GEMINI_MODEL = "gemini-3.5-flash-lite"
+```
+
+In macOS or Linux:
+
+```bash
+export GEMINI_API_KEY="YOUR_API_KEY"
+export GEMINI_MODEL="gemini-3.5-flash-lite"
+```
+
+Replace the placeholder with your private key. These settings apply to
+the current terminal session.
+
+`gemini-3.5-flash-lite` was verified in the recorded executions. Model
+access, quotas, and availability depend on the API account and service.
+
+Verify configuration without printing the key:
+
+```cmd
+python -c "import os; print('API key configured:', bool(os.environ.get('GEMINI_API_KEY'))); print('Model:', os.environ.get('GEMINI_MODEL'))"
+```
+
+### 7. Run With AI Explanations
+
+Baseline prompt:
+
+```cmd
+python -m src.main --request "Give me 3 upbeat songs for a workout" --ai
+```
+
+Specialized prompt:
+
+```cmd
+python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --specialized
+```
+
+Approved studying alternatives:
+
+```cmd
+python -m src.main --request "3 calm jazz songs for studying" --ai
+```
+
+Answer `y` to include eligible tracks from other genres.
+
+### 8. Run Tests and Evaluation
+
+```cmd
+python -m pytest -q
+python evaluate.py
+```
+
+These checks do not make live Gemini requests.
+
+Run the live prompt comparison separately:
+
+```cmd
+python compare_prompts.py
+```
+
+The comparison makes two model requests and writes
+`evidence/prompt_comparison.md`.
+
+## Supported Requests and Options
+
+| Example | Behavior |
+|---|---|
+| `3 upbeat songs for a workout` | Retrieve and rank suitable workout tracks |
+| `Give me 3 upbeat songs for a workout` | Same request with the optional introductory phrase |
+| `3 calm lofi songs for studying` | Preserve lofi and apply studying rules |
+| `3 calm jazz songs for studying` | Ask before broadening when exact matches are insufficient |
+| `--ai` | Generate explanations with Gemini |
+| `--ai --specialized` | Use the few-shot curator style |
+
+Requests support counts from **1 to 10**. Fewer tracks may be returned
+when the active constraints cannot supply the requested count.
+
+The parser currently accepts the documented request patterns.
+
+## Reproducible Execution Evidence
+
+The following excerpts come from observed executions. Table columns are
+condensed here for readability. Full recorded logs are linked below.
+
+Live explanations can vary across runs.
+
+### Example 1 — Workout With Specialized AI Explanations
+
+Command:
+
+```cmd
+python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --specialized
+```
+
+Observed output excerpt:
 
 ```text
 Loaded songs: 18
 
-High-Energy Pop - Top 5 Recommendations
-Favorite genre: pop | Favorite mood: happy | Target energy: 0.85
-1. Sunrise City | Score: 3.97
-   Reasons: genre match (+2.00), mood match (+1.00), energy similarity (+0.97)
-2. Gym Hero | Score: 2.92
-   Reasons: genre match (+2.00), energy similarity (+0.92)
-3. Rooftop Lights | Score: 1.91
-   Reasons: mood match (+1.00), energy similarity (+0.91)
-4. Dancing After Dark | Score: 0.99
-   Reasons: energy similarity (+0.99)
-5. Neon Tide | Score: 0.97
-   Reasons: energy similarity (+0.97)
+Playlist request: Give me 3 upbeat songs for a workout
+Explanation mode: Gemini
+Prompt style: specialized
 
-Chill Lofi - Top 5 Recommendations
-Favorite genre: lofi | Favorite mood: chill | Target energy: 0.25
-1. Library Rain | Score: 3.90
-   Reasons: genre match (+2.00), mood match (+1.00), energy similarity (+0.90)
-2. Midnight Coding | Score: 3.83
-   Reasons: genre match (+2.00), mood match (+1.00), energy similarity (+0.83)
-3. Focus Flow | Score: 2.85
-   Reasons: genre match (+2.00), energy similarity (+0.85)
-4. Spacewalk Thoughts | Score: 1.97
-   Reasons: mood match (+1.00), energy similarity (+0.97)
-5. Coffee Shop Stories | Score: 0.88
-   Reasons: energy similarity (+0.88)
+Neon Tide | Score: 1.98
+Mood: energizing. Energy: 0.88. Fits a workout and is close to the guide target of 0.90.
+[Source: data/curation_guides.md#workout; catalog ID: 11]
 
-Deep Intense Rock - Top 5 Recommendations
-Favorite genre: rock | Favorite mood: intense | Target energy: 0.90
-1. Storm Runner | Score: 3.99
-   Reasons: genre match (+2.00), mood match (+1.00), energy similarity (+0.99)
-2. Gym Hero | Score: 1.97
-   Reasons: mood match (+1.00), energy similarity (+0.97)
-3. Winter Signal | Score: 1.00
-   Reasons: energy similarity (+1.00)
-4. Neon Tide | Score: 0.98
-   Reasons: energy similarity (+0.98)
-5. Dancing After Dark | Score: 0.96
-   Reasons: energy similarity (+0.96)
+Storm Runner | Score: 0.99
+Mood: intense. Energy: 0.91. Fits a workout and is close to the guide target of 0.90.
+[Source: data/curation_guides.md#workout; catalog ID: 3]
+
+Gym Hero | Score: 0.97
+Mood: intense. Energy: 0.93. Fits a workout and is close to the guide target of 0.90.
+[Source: data/curation_guides.md#workout; catalog ID: 5]
 ```
 
----
+This demonstrates catalog retrieval, activity guidance, ranking, and
+specialized generation.
 
-## Experiments You Tried
+### Example 2 — Declining Other Genres
 
-### Manual Scoring Check
+Command:
 
-I applied the baseline scoring rule by hand to three songs for the
-High-Energy Pop profile. Sunrise City scored highest because it matched
-both genre and mood and was only `0.03` away from the energy target.
-Gym Hero scored higher than Rooftop Lights because its exact `pop` match
-earned two points, while Rooftop Lights earned one point for matching the
-`happy` mood.
+```cmd
+python -m src.main --request "3 calm jazz songs for studying"
+```
 
-### Manual Weight Comparison
+Observed interaction excerpt:
 
-I compared two weighting strategies by hand for the High-Energy Pop
-profile. Both used the same energy similarity formula and kept the
-energy weight at `1.0`.
+```text
+Loaded songs: 18
 
-| Strategy | Genre weight | Mood weight | Energy weight | Gym Hero | Rooftop Lights |
-|---|---:|---:|---:|---:|---:|
-| Baseline | 2.0 | 1.0 | 1.0 | 2.92 | 1.91 |
-| Mood-first | 1.0 | 2.0 | 1.0 | 1.92 | 2.91 |
+Playlist request: 3 calm jazz songs for studying
+Found 1 matching track(s) out of 3 requested.
+Include other genres while keeping the studying energy and mood rules? [y/N]: N
+Keeping only the requested genre.
+Explanation mode: catalog scoring
 
-Gym Hero ranked higher with the baseline because its genre matched.
-Rooftop Lights ranked higher with the mood-first weights because its
-mood matched. Their energy similarity scores differed by only `0.01`,
-so the change in genre and mood weights reversed their order.
+Coffee Shop Stories | Score: 2.98
+genre match (+2.00), energy similarity (+0.98);
+studying guide match (energy 0.37, mood relaxed);
+genre status: requested genre;
+source: data/curation_guides.md#studying
+```
 
-### CLI Weight Experiment
+The listener's genre preference remains active after declining.
 
-I ran the same 18-song catalog and three taste profiles with two sets
-of weights. In the second run, I reduced the genre weight from `2.0`
-to `1.0` and increased the energy weight from `1.0` to `2.0`. The mood
-weight stayed at `1.0`. I later verified the same results using the
-selectable Energy-Focused mode.
+### Example 3 — Approving Other Genres With AI
 
-| Chill Lofi recommendation | Baseline rank | Baseline score | Experiment rank | Experiment score |
+Command:
+
+```cmd
+python -m src.main --request "3 calm jazz songs for studying" --ai
+```
+
+Answer `y` at the prompt.
+
+Observed interaction excerpt:
+
+```text
+Loaded songs: 18
+
+Playlist request: 3 calm jazz songs for studying
+Found 1 matching track(s) out of 3 requested.
+Other genres approved by the listener.
+Found 3 track(s) after broadening the search.
+Explanation mode: Gemini
+
+Coffee Shop Stories | Score: 2.98
+This jazz track fits the studying request with a relaxed mood and an energy of 0.37, matching the target studying energy of 0.35.
+[Source: data/curation_guides.md#studying; catalog ID: 7]
+
+Focus Flow | Score: 1.95
+As an approved alternative genre, this lofi track supports studying with a focused mood and an energy of 0.4, closely matching the target energy.
+[Source: data/curation_guides.md#studying; catalog ID: 9]
+
+Library Rain | Score: 1.00
+This lofi track serves as an approved alternative genre for studying, featuring a chill mood and an energy of 0.35 that exactly meets the target energy.
+[Source: data/curation_guides.md#studying; catalog ID: 4]
+```
+
+The energy target comes from the studying guide. The first explanation's
+word “matching” describes a nearby value, rather than numerical equality.
+This is an observed wording limitation discussed in the model card.
+
+### Guardrail Example — Blank Input
+
+```cmd
+python -m src.main --request ""
+```
+
+Observed error excerpt:
+
+```text
+Loaded songs: 18
+main.py: error: Enter a playlist request, such as '3 upbeat songs for a workout'.
+```
+
+### API Failure Example
+
+During testing, a live request returned:
+
+```text
+AI explanation unavailable. Showing catalog-based explanations.
+Reason: 504 DEADLINE_EXCEEDED.
+```
+
+The application then displayed the verified catalog recommendations.
+
+### Full Execution Logs
+
+- [Workout AI execution](evidence/workout_ai.txt)
+- [Declined studying search](evidence/studying_declined.txt)
+- [Approved studying search](evidence/studying_approved.txt)
+- [Approved studying search with AI](evidence/studying_approved_ai.txt)
+- [Evaluation summary](evidence/evaluation.txt)
+- [Baseline and specialized comparison](evidence/prompt_comparison.md)
+
+## Reliability and Evaluation
+
+### Automated Tests
+
+Latest verified result after integrating specialized prompting:
+
+```cmd
+python -m pytest -q
+```
+
+```text
+38 passed in 0.93s
+```
+
+Coverage includes:
+
+- Original recommendation behavior.
+- Blank inputs and invalid counts.
+- Guide retrieval and malformed rules.
+- Guide changes affecting filtering.
+- Studying genre, mood, and energy constraints.
+- Approved and declined broader searches.
+- Missing approval input.
+- Model JSON, IDs, duplicates, completeness, and length.
+
+### CLI Evaluation Harness
+
+```cmd
+python evaluate.py
+```
+
+```text
+Playlist Intelligence - CLI Evaluation
+Live Gemini calls: disabled
+
+PASS | Workout recommendations
+PASS | Exact studying recommendations
+PASS | Declined genre broadening
+PASS | Approved genre broadening
+PASS | Blank request guardrail
+PASS | Invalid count guardrail
+PASS | Unknown genre guardrail
+PASS | AI requires a request
+
+Summary: 8/8 cases passed
+Pass rate: 100%
+```
+
+The pass rate applies to these eight predefined scenarios. It does not
+measure listener satisfaction or the factual accuracy of every generated
+sentence.
+
+### Human Review of Observed Behavior
+
+| Case | Criterion | Observed result |
+|---|---|---|
+| Initial workout filter | Respect upbeat intent | Needed revision — energy-only filtering selected a sad track |
+| Revised workout filter | Apply energy and suitable moods | Pass — Winter Signal excluded |
+| Jazz request, answer N | Preserve jazz | Pass — one exact match |
+| Jazz request, answer y | Broaden only with approval | Pass — jazz match and two eligible lofi tracks |
+| Approved AI explanations | Identify alternative genres | Pass in recorded run |
+| Numeric explanation wording | Distinguish nearby and exact values | Needs improvement — some wording is imprecise |
+| API 503/504 response | Provide an identified fallback | Pass in observed runs |
+
+## Stretch Features and Evidence
+
+### Multi-Source RAG
+
+The app combines the song catalog with a custom activity guide.
+
+The initial workout filter used energy alone and recommended Winter
+Signal. Adding suitable mood rules removed that sad track. The revised
+playlist contained Neon Tide, Storm Runner, and Gym Hero.
+
+A guide-threshold test also confirms that changing the retrieved minimum
+energy changes which tracks are eligible.
+
+This improved alignment with the project's activity rules. Listener
+enjoyment has not been measured.
+
+### Agentic Decision Workflow
+
+The runtime workflow validates, retrieves, ranks, checks the result
+count, requests approval when needed, and searches again after approval.
+
+The decision chain is implemented in Python. Human approval controls
+genre broadening.
+
+Actions, observed results, and committed execution logs are documented in
+[ai_interactions.md](ai_interactions.md).
+
+### Specialization
+
+The specialized prompt adds few-shot examples and requests short,
+consistently labeled evidence.
+
+Observed live comparison:
+
+| Style | Average words | At most 25 words | Correct mood labels | Correct energy labels |
 |---|---:|---:|---:|---:|
-| Spacewalk Thoughts | 4 | 1.97 | 3 | 2.94 |
-| Focus Flow | 3 | 2.85 | 4 | 2.70 |
+| Baseline | 23.3 | 3/3 | 0/3 | 0/3 |
+| Specialized | 16.0 | 3/3 | 3/3 | 3/3 |
 
-Spacewalk Thoughts overtook Focus Flow because it matched the `chill`
-mood and its energy of `0.28` was only `0.03` away from the target of
-`0.25`. Focus Flow matched the `lofi` genre, had a `focused` mood, and
-its energy of `0.40` was `0.15` away from the target. The revised order
-better reflects the requested mood and low energy. The baseline order
-gives the listener's genre preference more influence.
+Average length decreased by approximately **31%**.
 
-Library Rain stayed first for Chill Lofi. High-Energy Pop and Deep
-Intense Rock kept the same top-five order, although their scores changed.
+The baseline also used correct catalog facts. Label scores measure
+compliance with the specialized format.
 
----
+Full outputs and interpretation appear in
+[model_card.md](model_card.md) and
+[evidence/prompt_comparison.md](evidence/prompt_comparison.md).
 
-## Limitations and Risks
+### Evaluation Harness
 
-- The small catalog limits the range of songs the system can suggest.
-- Each baseline profile represents one favorite genre, one favorite mood,
-  and one energy target. Someone who enjoys both chill lofi and chill
-  ambient can specify only one favorite genre per profile.
-- Exact genre matching treats `pop` and `indie pop` as separate labels.
-  Combined with the two-point genre bonus in the default mode, this can
-  limit discovery across related genres.
-- The artist penalty considers repeat artists within a recommendation
-  list. A track with a strong base score can still rank ahead of a track
-  by a different artist after the penalty.
-- The advanced metadata is illustrative. Popularity points can favor
-  songs with higher assigned values, and evaluating whether the rankings
-  fit real listeners would require their feedback.
+`evaluate.py` executes the actual CLI on predefined inputs, checks exit
+codes and expected behavior, and prints a summary.
 
----
+The verified run passed **8/8 cases**.
+
+## Design Decisions
+
+| Decision | Reason and trade-off |
+|---|---|
+| Reuse Project 3 scoring | Keeps ranking inspectable, while inheriting its weighting assumptions |
+| Retrieve activity guidance | Makes rules traceable to a document, but requires predictable guide formatting |
+| Keep selection in Python | Provides reproducible ranking and constraint handling |
+| Use Gemini for explanations | Adds readable explanations with service dependency and wording risks |
+| Require approval to broaden genre | Gives listeners control over changing an explicit preference |
+| Validate model output | Rejects structural errors while leaving semantic accuracy for further evaluation |
+| Preserve catalog fallback | Keeps recommendations available during handled generation failures |
+| Separate live and simulated checks | Supports repeatable tests alongside recorded live generation |
+
+## Preserved Project 3 Features
+
+Run the original three-profile demo:
+
+```cmd
+python -m src.main
+```
+
+| Profile | First recommendation | Score |
+|---|---|---:|
+| High-Energy Pop | Sunrise City | 3.97 |
+| Chill Lofi | Library Rain | 3.90 |
+| Deep Intense Rock | Storm Runner | 3.99 |
+
+The baseline score uses a genre weight of `2.0`, mood weight of `1.0`,
+and energy-similarity weight of `1.0`.
+
+The original options remain available for the three-profile demo:
+
+```cmd
+python -m src.main --advanced
+python -m src.main --mode energy-focused
+python -m src.main --diversity
+python -m src.main --table
+python -m src.main --advanced --mode energy-focused --diversity --table
+```
+
+| Option | Purpose |
+|---|---|
+| `--advanced` | Include five additional illustrative metadata attributes |
+| `--mode energy-focused` | Use genre, mood, and energy weights of `(1.0, 1.0, 2.0)` |
+| `--diversity` | Apply a 0.50-point repeat-artist penalty during selection |
+| `--table` | Format the profile-demo output as a table |
+
+These options apply to the original profile demo. Playlist requests
+currently use their activity-specific ranking settings.
+
+Earlier experiments and detailed profile comparisons remain documented
+in [model_card.md](model_card.md) and
+[ai_interactions.md](ai_interactions.md).
+
+## Limitations and Remaining Work
+
+- The catalog is small and contains illustrative metadata.
+- Request parsing supports specific documented patterns.
+- Activity moods and thresholds reflect design assumptions.
+- Structural validation does not verify every generated factual claim.
+- Live generation can fail or vary between runs.
+- The studying guide's instrumental preference still needs implementation
+  or revision.
+- Network transport exceptions need additional safe handling.
+- Dependencies are currently unpinned. Exact package-version reproduction
+  has not yet been established.
+- Final setup verification from a fresh clone is pending.
 
 ## Reflection
 
-See the [Model Card](model_card.md) for the profile comparisons, edge-case
-test, and further discussion of the system's limitations.
+Extending the recommender taught me that matching a numeric feature is
+only part of satisfying a request. A high-energy song can still conflict
+with an upbeat mood, and a readable explanation can contain imprecise
+wording.
 
-Calculating scores by hand helped me understand how a recommender turns
-song attributes and user preferences into a ranked list. I used an AI
-coding assistant to compare scoring strategies and work through the
-implementation. I checked the sample scores by hand, verified the catalog
-size, and ran the starter tests.
+I learned to inspect outputs, revise rules, test failure cases, and
+preserve evidence of the system's behavior.
 
-I was surprised that Gym Hero ranked above Rooftop Lights for a listener
-looking for happy pop. The exact genre bonus outweighed the mood match.
-The CLI experiment showed how weighting energy more heavily could bring
-a song from another genre higher in the list when it matched the mood
-and came closer to the target energy. The advanced run showed how
-additional preferences could move Midnight Coding ahead of Library Rain
-even though both tracks already matched the requested genre and mood.
-Next, I would collect listener ratings to compare which scoring choices
-people find more relevant.
+The graded responsible-AI reflection, accepted and revised AI
+suggestions, limitations, misuse analysis, and testing surprises are in
+[model_card.md](model_card.md).
+
+## Presentation and Portfolio
+
+The planned 5–7 minute Engineer's Pitch follows four topics:
+
+- **The Problem** — Find activity-appropriate tracks and explain the picks.
+- **The Logic** — Retrieve guidance, rank songs, and generate explanations.
+- **The Reliability** — Show tests, approval controls, and fallback behavior.
+- **The Reflection** — Explain what testing revealed and what changed.
+
+### Portfolio Reflection
+
+This project shows my approach to building understandable AI systems.
+I extended an existing Python recommender, integrated retrieved
+guidance and model-generated explanations, and verified key behaviors
+with automated tests and recorded executions. I also added listener
+approval and fallback behavior so the system handles uncertainty and
+failures explicitly.
+
+[GitHub repository](https://github.com/HaidaMarese/playlist-intelligence)
+
+The presentation and optional Loom walkthrough are still in preparation.
 
 ## Author
 
-**Haida Makouangou**  
+**Haida Makouangou**
+
 B.S. in Computer Science, UNC Charlotte, Cum Laude
 
-I built VibeFinder 1.0 as a project for CodePath’s AI110 course.
+Built for CodePath AI110.
