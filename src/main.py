@@ -1,14 +1,19 @@
 """
 Command-line runner for Playlist Intelligence.
 
-Loads the song catalog and displays ranked recommendations for three
-taste profiles or a playlist request.
+Displays recommendations for three taste profiles or a playlist request.
+The --ai option generates explanations using retrieved catalog evidence
+and activity guidance.
 """
 
 import argparse
 import textwrap
 
+from google.genai import errors
+
 from .curator import rank_request
+from .guide_retriever import retrieve_guide
+from .llm_client import generate_explanations
 from .recommender import SCORING_MODES, load_songs, recommend_songs
 
 
@@ -42,7 +47,15 @@ def main() -> None:
         "--request",
         help="Rank songs for a playlist request.",
     )
+    parser.add_argument(
+        "--ai",
+        action="store_true",
+        help="Generate grounded playlist explanations with Gemini.",
+    )
     args = parser.parse_args()
+
+    if args.ai and args.request is None:
+        parser.error("--ai requires --request.")
 
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
@@ -54,6 +67,24 @@ def main() -> None:
             parser.error(str(error))
 
         print(f"\nPlaylist request: {args.request}")
+
+        if args.ai:
+            try:
+                recommendations = generate_explanations(
+                    args.request,
+                    recommendations,
+                    retrieve_guide("workout"),
+                )
+                print("Explanation mode: Gemini")
+            except (ValueError, errors.APIError) as error:
+                print(
+                    "AI explanation unavailable. "
+                    "Showing catalog-based explanations."
+                )
+                print(f"Reason: {error}")
+        else:
+            print("Explanation mode: catalog scoring")
+
         print_recommendation_table(recommendations)
         return
 

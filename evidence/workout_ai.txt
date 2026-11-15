@@ -1,0 +1,24 @@
+Loaded songs: 18
+
+Playlist request: Give me 3 upbeat songs for a workout
+Explanation mode: Gemini
+Rank  Song                      Artist                Score    Reasons
+----  ------------------------  --------------------  -------  ------------------------------------------
+1     Neon Tide                 Crystal Harbor        1.98     This song fits your workout request with
+                                                               an energizing mood and an energy level of
+                                                               0.88, which is close to the target energy
+                                                               of 0.90. [Source:
+                                                               data/curation_guides.md#workout; catalog
+                                                               ID: 11]
+2     Storm Runner              Voltline              0.99     This track supports your workout request
+                                                               by featuring an intense mood and an energy
+                                                               level of 0.91, meeting the minimum energy
+                                                               requirement of 0.75. [Source:
+                                                               data/curation_guides.md#workout; catalog
+                                                               ID: 3]
+3     Gym Hero                  Max Pulse             0.97     This selection matches your workout
+                                                               request with an intense mood and an energy
+                                                               level of 0.93, aligning well with the
+                                                               catalog's target energy of 0.90. [Source:
+                                                               data/curation_guides.md#workout; catalog
+                                                               ID: 5]
