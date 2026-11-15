@@ -2,8 +2,8 @@
 Command-line runner for Playlist Intelligence.
 
 Displays recommendations for three taste profiles or a playlist request.
-The --ai option generates explanations using retrieved catalog evidence
-and activity guidance.
+The --ai option generates grounded explanations. The --specialized option
+uses concise explanations guided by few-shot examples.
 """
 
 import argparse
@@ -57,10 +57,18 @@ def main() -> None:
         action="store_true",
         help="Generate grounded playlist explanations with Gemini.",
     )
+    parser.add_argument(
+        "--specialized",
+        action="store_true",
+        help="Use concise, few-shot curator explanations with --ai.",
+    )
     args = parser.parse_args()
 
     if args.ai and args.request is None:
         parser.error("--ai requires --request.")
+
+    if args.specialized and not args.ai:
+        parser.error("--specialized requires --ai.")
 
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
@@ -136,8 +144,13 @@ def main() -> None:
                     generation_request,
                     recommendations,
                     retrieve_guide(activity),
+                    specialized=args.specialized,
                 )
                 print("Explanation mode: Gemini")
+                print(
+                    "Prompt style: "
+                    + ("specialized" if args.specialized else "baseline")
+                )
             except (ValueError, errors.APIError) as error:
                 print(
                     "AI explanation unavailable. "
