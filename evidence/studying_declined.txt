@@ -1,0 +1,13 @@
+Loaded songs: 18
+
+Playlist request: 3 calm jazz songs for studying
+Found 1 matching track(s) out of 3 requested.
+Include other genres while keeping the studying energy and mood rules? [y/N]: Keeping only the requested genre.
+Explanation mode: catalog scoring
+Rank  Song                      Artist                Score    Reasons
+----  ------------------------  --------------------  -------  ------------------------------------------
+1     Coffee Shop Stories       Slow Stereo           2.98     genre match (+2.00), energy similarity
+                                                               (+0.98); studying guide match (energy
+                                                               0.37, mood relaxed); genre status:
+                                                               requested genre; source:
+                                                               data/curation_guides.md#studying

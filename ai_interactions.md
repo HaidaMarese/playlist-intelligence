@@ -1,12 +1,15 @@
 # AI Interactions Log
 
-> **Stretch features only.** This log covers all four optional challenges.
+> This log records the four optional challenges from Project 3 and the
+> implemented AI features and workflow evidence for Project 4.
+> Project 4's graded responsible-AI reflection belongs in `model_card.md`.
 
 ---
 
 ## Agentic Workflow (SF8)
 
-> Document your experience using an AI agent (e.g., Cursor Agent, Claude, Copilot) to make multi-step changes autonomously.
+> Document your experience using an AI agent or assistant to make
+> changes, including the task, generated changes, and manual verification.
 
 ### Optional Challenge 1 — Advanced Song Features
 
@@ -239,3 +242,236 @@ Challenge 3 applies the artist penalty during ranking, after
 `score_song()` calculates the base score. Challenge 4 formats the ranked
 results for display. These steps let the scoring, diversity, and display
 options work together.
+
+---
+
+## Project 4 — Playlist Intelligence
+
+> Project 4 extends Project 3, Music Recommender Simulation, using the
+> existing 18-song catalog and scoring functions.
+
+### AI-Assisted Development Workflow
+
+**What task did you give the assistant?**
+
+I asked the assistant to guide me through the final project step by step,
+including the required features and all four optional enhancements.
+I requested complete Python files that I could copy into VS Code,
+then ran commands and shared their actual outputs for verification.
+
+**Prompts used**
+
+These are paraphrases of my requests during development.
+
+- Extend my existing music recommender to meet the Applied AI System
+  requirements and grading rubric.
+- Give me complete updates to `src/main.py`, `src/curator.py`, and
+  `src/study_curator.py`.
+- Explain whether Python or Gemini selects the songs.
+- Keep the existing catalog and continue building on the project.
+- Check our progress against Steps 0–6 and the submission requirements.
+
+**What did the assistant generate or change?**
+
+- `src/curator.py` validates workout requests and applies retrieved rules.
+- `src/guide_retriever.py` retrieves activity sections from the custom guide.
+- `data/curation_guides.md` defines workout and studying guidance.
+- `src/llm_client.py` sends retrieved evidence to Gemini and validates
+  the returned explanation records.
+- `src/study_curator.py` ranks studying tracks and supports explicitly
+  authorized searches across other genres.
+- `src/main.py` connects requests, retrieval, ranking, approval,
+  generation, fallback, and table output.
+- Automated tests cover request validation, guide behavior, model-output
+  validation, and listener approval decisions.
+
+**What did you verify or fix manually?**
+
+I applied the code in VS Code and ran the commands myself. During this
+process, I corrected an indentation problem that made the studying
+dispatch unreachable.
+
+The assistant initially used `request` as a pytest parameter name.
+Pytest rejected it because that name is reserved. I applied the revised
+test using `playlist_request`, then reran the suite successfully.
+
+I also checked the Python interpreter after package installation used
+my user-wide Python installation. Reactivating the project's `.venv`
+restored the intended interpreter.
+
+### Multi-Source Retrieval and Grounded Generation
+
+**What task did you give the assistant?**
+
+I wanted playlist explanations to use both the existing song catalog
+and custom activity guidance.
+
+**What changed in the application?**
+
+The application retrieves records from `data/songs.csv` and an activity
+section from `data/curation_guides.md`.
+
+Python applies the guide's mood and energy rules, then ranks eligible
+tracks. With `--ai`, Gemini receives the selected tracks, scoring
+evidence, listener request, and retrieved guide. It writes explanations
+for those tracks.
+
+Python validates returned IDs, duplicate IDs, missing tracks, JSON
+format, and explanation length before displaying the generated output.
+
+**What did you verify manually?**
+
+The original workout filter used energy alone and selected Winter
+Signal, which has sad and melancholic tags. Adding suitable mood rules
+removed it from the workout results.
+
+The revised workout playlist contained Neon Tide, Storm Runner, and
+Gym Hero.
+
+I verified that changing the retrieved guide's minimum energy from
+0.75 to 0.90 changed the parsed rule. An automated test also confirmed
+that a stricter guide threshold removes a lower-energy candidate.
+
+Successful Gemini runs produced explanations using the retrieved mood,
+energy values, and activity guidance.
+
+```cmd
+python -m src.main --request "Give me 3 upbeat songs for a workout" --ai
+python -m src.main --request "3 calm lofi songs for studying" --ai
+```
+
+The saved workout execution is available in
+[the AI workout log](evidence/workout_ai.txt).
+
+**What reliability issues did you observe?**
+
+Some model requests returned 503 high-demand errors or 504 deadline
+errors. The application displayed catalog-based explanations when
+those API errors occurred.
+
+The 2.5 models tested returned messages stating that they were
+unavailable to new users. Successful full playlist generation was
+verified with `gemini-3.5-flash-lite`.
+
+Generated explanations occasionally used imprecise wording about an
+energy target. Structural output validation does not establish the
+factual accuracy of every sentence. Factual evaluation remains part
+of the remaining project work.
+
+### Agentic Workflow Enhancement — Studying Playlist Approval
+
+**What task did you give the assistant?**
+
+I wanted the application to detect insufficient exact matches and ask
+the listener before including tracks from other genres.
+
+**What did the assistant generate or change?**
+
+- The initial studying search preserves the requested genre.
+- `src/main.py` checks whether the result count meets the request.
+- If the search has too few matches, it asks for approval.
+- Only `y` or `yes`, ignoring capitalization and surrounding spaces,
+  authorizes another search across genres.
+- Declining, pressing Enter, or reaching end-of-input keeps the original
+  genre constraint.
+- The broader search keeps the studying mood and energy restrictions.
+- Catalog explanations label tracks from other genres as approved
+  alternatives.
+- When `--ai` is enabled after approval, the generation request includes
+  the listener's decision.
+
+**Observed workflow trace**
+
+The following table records the actions and decisions observed while
+running `3 calm jazz songs for studying`.
+
+| Step | Action | Observed result | Next decision |
+|---|---|---|---|
+| 1 | Validate the request | Count 3, genre jazz, activity studying | Retrieve the studying guide |
+| 2 | Retrieve activity guidance | Target energy 0.35, maximum energy 0.50, suitable studying moods | Filter and rank catalog tracks |
+| 3 | Search within jazz | Coffee Shop Stories is the only match | Ask whether other genres may be included |
+| 4A | Listener enters N | Broader search declined | Return Coffee Shop Stories only |
+| 4B | Listener enters y | Broader search approved | Search across genres with the same energy and mood rules |
+| 5B | Rank broader candidates | Coffee Shop Stories, Focus Flow, Library Rain | Label alternative genres and display the playlist |
+
+**What did you verify or fix manually?**
+
+I ran the request twice. Answering `N` returned only Coffee Shop Stories.
+Answering `y` returned three tracks.
+
+| Listener decision | Song | Genre | Score | Status |
+|---|---|---|---:|---|
+| Decline | Coffee Shop Stories | jazz | 2.98 | Requested genre |
+| Approve | Coffee Shop Stories | jazz | 2.98 | Requested genre |
+| Approve | Focus Flow | lofi | 1.95 | Approved alternative genre |
+| Approve | Library Rain | lofi | 1.00 | Approved alternative genre |
+
+**Reproducible commands**
+
+Run these from the project root in Windows Command Prompt.
+
+```cmd
+echo n| python -m src.main --request "3 calm jazz songs for studying"
+echo y| python -m src.main --request "3 calm jazz songs for studying"
+```
+
+**Saved execution logs**
+
+- [Declined broader search](evidence/studying_declined.txt)
+- [Approved broader search](evidence/studying_approved.txt)
+
+These logs capture the catalog-scoring approval workflow. The runtime
+decision chain is implemented in Python and includes the human approval
+step.
+
+**Automated verification**
+
+```cmd
+python -m pytest -q
+```
+
+Observed result after adding approval tests:
+
+```text
+32 passed in 0.51s
+```
+
+| Approval scenario | Verified behavior | Result |
+|---|---|---|
+| Answer n | Preserve jazz only | Pass |
+| Answer N | Preserve jazz only | Pass |
+| Press Enter | Preserve jazz only | Pass |
+| Answer y | Include eligible alternative genres | Pass |
+| Answer YES | Include eligible alternative genres | Pass |
+| Input stream unavailable | Preserve jazz only | Pass |
+| Enough exact lofi matches | Return results without prompting | Pass |
+
+### Specialization Enhancement — Pending
+
+A baseline-versus-specialized prompt comparison has not yet been
+completed.
+
+The planned enhancement uses few-shot examples or constrained style.
+Actual baseline and specialized outputs, scoring criteria, and
+measurable differences must be recorded in `model_card.md`.
+
+### Evaluation Harness Enhancement — Pending
+
+The current automated verification uses pytest.
+
+A separate `evaluate.py` script still needs to run predefined scenarios
+through the application and print a result summary. Its actual command
+output will be included in the final README.
+
+### Remaining Project 4 Verification
+
+- Add automated tests specifically covering studying retrieval rules.
+- Verify Gemini explanations after approved genre broadening.
+- Incorporate or revise the studying guide's instrumental preference.
+- Add safe handling for network exceptions.
+- Evaluate the factual accuracy of generated explanations.
+- Complete and document the multi-source retrieval quality comparison.
+- Complete the specialization comparison and evaluation harness.
+- Create the Mermaid architecture source.
+- Finish the README, model card, presentation, and portfolio reflection.
+- Verify installation and execution from a fresh clone.

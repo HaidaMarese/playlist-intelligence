@@ -7,6 +7,7 @@ and activity guidance.
 """
 
 import argparse
+import re
 import textwrap
 
 from google.genai import errors
@@ -15,6 +16,7 @@ from .curator import rank_request
 from .guide_retriever import retrieve_guide
 from .llm_client import generate_explanations
 from .recommender import SCORING_MODES, load_songs, recommend_songs
+from .study_curator import rank_study_request
 
 
 def main() -> None:
@@ -45,7 +47,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--request",
-        help="Rank songs for a playlist request.",
+        help=(
+            "Request a playlist, such as '3 upbeat songs for a workout' "
+            "or '3 calm jazz songs for studying'."
+        ),
     )
     parser.add_argument(
         "--ai",
@@ -68,12 +73,69 @@ def main() -> None:
 
         print(f"\nPlaylist request: {args.request}")
 
+        activity = (
+            "studying"
+            if args.request.strip().casefold().endswith("for studying")
+            else "workout"
+        )
+        other_genres_approved = False
+
+        if activity == "studying":
+            requested_count = int(re.search(r"\d+", args.request).group())
+
+            if len(recommendations) < requested_count:
+                print(
+                    f"Found {len(recommendations)} matching track(s) "
+                    f"out of {requested_count} requested."
+                )
+
+                try:
+                    approval = input(
+                        "Include other genres while keeping the studying "
+                        "energy and mood rules? [y/N]: "
+                    ).strip().casefold()
+                except EOFError:
+                    approval = ""
+
+                if approval in {"y", "yes"}:
+                    try:
+                        recommendations = rank_study_request(
+                            args.request,
+                            songs,
+                            allow_other_genres=True,
+                        )
+                    except ValueError as error:
+                        parser.error(str(error))
+
+                    other_genres_approved = True
+                    print("Other genres approved by the listener.")
+                    print(
+                        f"Found {len(recommendations)} track(s) "
+                        "after broadening the search."
+                    )
+                else:
+                    print("Keeping only the requested genre.")
+
+        if not recommendations:
+            print("No tracks match the active constraints.")
+            return
+
         if args.ai:
+            generation_request = args.request
+
+            if other_genres_approved:
+                generation_request += (
+                    "\nThe listener explicitly approved including other "
+                    "genres while keeping the studying energy and mood "
+                    "rules. Identify tracks outside the requested genre "
+                    "as approved alternatives."
+                )
+
             try:
                 recommendations = generate_explanations(
-                    args.request,
+                    generation_request,
                     recommendations,
-                    retrieve_guide("workout"),
+                    retrieve_guide(activity),
                 )
                 print("Explanation mode: Gemini")
             except (ValueError, errors.APIError) as error:

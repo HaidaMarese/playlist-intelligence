@@ -4,6 +4,7 @@ import re
 
 from .guide_retriever import retrieve_guide
 from .recommender import recommend_songs
+from .study_curator import rank_study_request
 
 
 def read_workout_rules(guide_text):
@@ -57,12 +58,15 @@ def read_workout_rules(guide_text):
 
 
 def rank_request(request, songs):
-    """Retrieve workout guidance, filter tracks, and rank matches."""
+    """Retrieve activity guidance, filter tracks, and rank matches."""
     if not request.strip():
         raise ValueError(
             "Enter a playlist request, such as "
             "'3 upbeat songs for a workout'."
         )
+
+    if request.strip().casefold().endswith("for studying"):
+        return rank_study_request(request, songs)
 
     match = re.fullmatch(
         r"(?:give me )?(\d+) upbeat songs? for a workout",
