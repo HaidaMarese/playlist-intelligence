@@ -14,7 +14,8 @@ and table output.
 
 Project 4 adds activity-guide retrieval, playlist requests, Gemini
 explanations, output validation, listener approval before broadening
-a studying search, and instrumentalness tie-breaking.
+a studying search, instrumentalness tie-breaking, and network-failure
+handling.
 
 ---
 
@@ -45,9 +46,9 @@ The system supports classroom demonstrations, portfolio review, and
 experimentation with retrieval, ranking, AI explanations, and reliability
 testing.
 
-Recommendations come from the supplied catalog. The application does
-not stream music or connect to Spotify. Listener enjoyment has not been
-measured.
+Recommendations come from the supplied catalog. Listener enjoyment has
+not been measured. The application currently provides recommendations
+and explanations through a command-line interface.
 
 ---
 
@@ -169,12 +170,23 @@ The specialized prompt adds illustrative few-shot examples. It requests:
 The shared output validator enforces a maximum of 50 words. Compliance
 with the specialized 25-word target is measured in the comparison.
 
-### API Failure Handling
+### API and Network-Failure Handling
 
 For handled API errors or invalid model output, the application displays
 catalog-based explanations and identifies the fallback.
 
-Safe handling of network transport exceptions remains to be completed.
+The model client catches `httpx2.TransportError` and `OSError`, converting
+them into a handled application error. The CLI then displays a fallback
+notice and catalog-based recommendations.
+
+Two simulated tests verify connection-failure handling:
+
+- A connection error during generation becomes a handled error.
+- A connection error during client creation triggers the CLI fallback
+  and preserves the catalog recommendations.
+
+Network timeout exceptions are covered by the transport-error handler.
+A dedicated timeout-specific test is still pending.
 
 ---
 
@@ -231,7 +243,7 @@ and Gym Hero.
 An automated test confirms that increasing the retrieved minimum energy
 threshold removes a lower-energy candidate.
 
-The studying guide's instrumental preference now affects selection when
+The studying guide's instrumental preference affects selection when
 primary scores are equal.
 
 ### Listener Control
@@ -248,8 +260,8 @@ be included while retaining the studying energy and mood restrictions.
 Successful Gemini runs explained selected tracks using their actual
 catalog mood and energy values.
 
-When API calls returned handled service errors, the application continued
-displaying catalog-based recommendations.
+Observed API-error runs continued displaying catalog recommendations.
+Simulated connection-failure tests also verified fallback behavior.
 
 ---
 
@@ -312,19 +324,24 @@ Rewording that sentence can disable the preference.
 Gemini can use imprecise language. During testing, it sometimes described
 a nearby energy value as matching the target.
 
-Structural validation does not establish the accuracy of every statement.
-A returned song ID can be valid while its explanation still needs
-correction.
+Structural validation checks response format and IDs. A valid song ID
+can still have an explanation that needs factual correction.
 
 ### External Service Availability
 
 Live generation depends on model access, API limits, connectivity, and
-service availability. A fallback run records handled failure behavior.
+service availability.
+
+Fallback behavior keeps catalog recommendations available during handled
+failures. Live AI explanations require a successful model response.
 
 ### Evaluation Scope
 
 Automated tests check defined behaviors. They do not measure listener
 satisfaction or establish reliability across every possible input.
+
+Connection-failure checks use simulated errors. Dedicated timeout tests
+and broader network-failure experiments remain future improvements.
 
 The prompt comparison used one request and one generation per style.
 Broader experiments are needed before generalizing the results.
@@ -409,15 +426,15 @@ changed.
 
 ### Project 4 Automated Tests
 
-The latest verified result after implementing instrumentalness
-tie-breaking was:
+The latest verified result after adding network-failure handling and
+CLI fallback tests was:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-39 passed in 1.19s
+41 passed in 0.89s
 ```
 
 The suite covers:
@@ -430,9 +447,11 @@ The suite covers:
 - Listener approval behavior.
 - Instrumentalness tie-breaking before result truncation.
 - Primary relevance taking priority over instrumentalness.
+- Conversion of simulated connection failures into handled errors.
+- CLI fallback after a simulated connection failure.
 
-Model-output tests use simulated responses and require no live
-Gemini calls.
+Model-output and connection-failure tests use simulated responses
+or errors. They make no live Gemini requests.
 
 ### Instrumentalness Test
 
@@ -451,9 +470,19 @@ Stronger Mood Match
 Higher Instrumentalness
 ```
 
-This confirms that primary relevance ranks first and that the
-instrumentalness preference is applied before selecting the final
-number of results.
+This confirms that primary relevance ranks first and that instrumentalness
+is applied before selecting the final number of results.
+
+### Simulated Network-Failure Tests
+
+| Test | Failure simulated | Verified behavior |
+|---|---|---|
+| Model-client error handling | Connection error during generation | Raises a handled application error |
+| CLI fallback | Connection error during client creation | Displays fallback notice and catalog recommendations |
+
+The CLI test checks for the fallback notice and the presence of Neon Tide,
+Storm Runner, and Gym Hero. It also confirms that the output does not
+report successful Gemini generation.
 
 ### Project 4 CLI Evaluation Harness
 
@@ -479,7 +508,7 @@ Pass rate: 100%
 ```
 
 The 100% result applies to these eight predefined cases. The harness
-was rerun successfully after adding instrumentalness tie-breaking.
+was rerun successfully after adding model-client network handling.
 
 ### Observed Guardrail and Workflow Behavior
 
@@ -496,6 +525,8 @@ was rerun successfully after adding instrumentalness tie-breaking.
 | Higher primary relevance | Preserve score priority | Pass in controlled automated test |
 | Model returns unknown or duplicate IDs | Reject invalid response | Pass in simulated-response tests |
 | API returns 503 or 504 | Show an identified fallback | Pass in observed live runs |
+| Connection error during generation | Convert into handled error | Pass in simulated test |
+| Connection error during client creation | Display CLI catalog fallback | Pass in simulated test |
 
 ### Live Generation Evidence
 
@@ -515,8 +546,8 @@ Recorded evidence includes:
 - [CLI evaluation summary](evidence/evaluation.txt)
 
 The studying execution logs were recorded before instrumentalness
-tie-breaking was added. They document the observed approval and
-generation behavior at that stage.
+tie-breaking was added. They document approval and generation behavior
+at that stage.
 
 ---
 
@@ -534,8 +565,8 @@ Both runs used:
 - The same workout guide.
 - The same model, output limit, and validation.
 
-The specialized prompt added illustrative few-shot examples and
-requested concise explanations with explicit mood and energy labels.
+The specialized prompt added illustrative few-shot examples and requested
+concise explanations with explicit mood and energy labels.
 
 ```cmd
 python compare_prompts.py
@@ -585,7 +616,7 @@ python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --speci
 
 ### Full Comparison Evidence
 
-The actual outputs and measurements are saved in
+Actual outputs and measurements are saved in
 [evidence/prompt_comparison.md](evidence/prompt_comparison.md).
 
 ---
@@ -594,21 +625,20 @@ The actual outputs and measurements are saved in
 
 ### Overstating Recommendation Quality
 
-A user could interpret a high score as a guarantee that a track is
-suitable or enjoyable.
+A user could interpret a high score as a guarantee that a track is suitable
+or enjoyable.
 
 The documentation explains that scores come from rules and illustrative
 metadata. Listener feedback would be needed to assess enjoyment.
 
 ### Unsupported Claims in Generated Text
 
-Generated explanations could introduce unsupported statements about
-lyrics, health, or performance.
+Generated explanations could introduce unsupported statements about lyrics,
+health, or performance.
 
-The prompt restricts explanations to retrieved facts and excludes
-invented health effects. Output validation checks IDs and format.
-Manual factual review remains necessary because those checks do not
-validate every claim.
+The prompt restricts explanations to retrieved facts and excludes invented
+health effects. Output validation checks IDs and format. Manual factual
+review remains necessary.
 
 ### Ignoring Listener Preferences
 
@@ -627,11 +657,11 @@ evidence, and Git commits.
 ### Retrieved Content Quality
 
 Editing the guide changes system behavior. Invalid or incomplete energy
-rules can be rejected, but the application cannot determine whether
-every well-formed rule is appropriate.
+rules can be rejected, but the application cannot determine whether every
+well-formed rule is appropriate.
 
-The catalog and guide should be reviewed when changed, followed by
-the test suite and evaluation harness.
+The catalog and guide should be reviewed when changed, followed by the
+test suite and evaluation harness.
 
 ---
 
@@ -639,13 +669,13 @@ the test suite and evaluation harness.
 
 ### How I Used AI
 
-I used an AI assistant to plan the project, reuse the existing ranking
-code, write Python modules, design tests, interpret errors, and prepare
+I used an AI assistant to plan the project, reuse existing ranking code,
+write Python modules, design tests, interpret errors, and prepare
 documentation.
 
 I copied proposed changes into VS Code, ran commands, and shared their
-outputs for review. I checked the recommendations and test results
-throughout development.
+outputs for review. I checked recommendations and test results throughout
+development.
 
 ### One Suggestion I Accepted
 
@@ -655,8 +685,8 @@ and give Gemini the selected tracks and retrieved guidance.
 This kept selection understandable through numeric scores while adding
 natural-language explanations grounded in catalog evidence.
 
-I also accepted a human approval step before broadening a studying
-request because it gives the listener control over a meaningful change.
+I also accepted a human approval step before broadening a studying request
+because it gives the listener control over a meaningful change.
 
 ### One Suggestion I Revised
 
@@ -664,72 +694,77 @@ The initial workout filter used high energy as its main suitability
 condition. It selected Winter Signal, which has sad and melancholic tags.
 
 I applied a revision that requires both sufficient energy and a suitable
-mood from the retrieved guide. The revised playlist excluded Winter
-Signal and returned Neon Tide, Storm Runner, and Gym Hero.
+mood from the retrieved guide. The revised playlist excluded Winter Signal
+and returned Neon Tide, Storm Runner, and Gym Hero.
 
 This changed an early AI-assisted implementation after inspecting its
 actual output.
 
 ### What Surprised Me During Reliability Testing
 
-A high-energy track could pass a workout filter while still conflicting
-with the request's upbeat mood. This showed me that a valid numeric
-match can miss part of the listener's intent.
+A high-energy track could pass a workout filter while conflicting with
+the request's upbeat mood. A numeric match could miss part of the
+listener's intent.
 
 I also observed that a successful API connection test did not guarantee
-that later generation requests would succeed. Service errors made the
+that later generation requests would succeed. Service errors made
 fallback behavior necessary.
 
 ### What I Learned About Verification
 
-I initially encountered a pytest collection error because the assistant
-used the reserved parameter name `request`. Renaming it to
-`playlist_request` fixed collection.
+I encountered a pytest collection error because the assistant used the
+reserved parameter name `request`. Renaming it to `playlist_request`
+fixed collection.
 
-Testing also exposed an indentation problem that prevented studying
-requests from reaching their intended handler.
+Testing exposed an indentation problem that prevented studying requests
+from reaching their intended handler.
 
-The instrumentalness test added another check. It verifies that a
-secondary preference can change selection among equal scores while
-primary relevance takes priority.
+The instrumentalness test verifies that a secondary preference can affect
+selection among equal scores while primary relevance takes priority.
+
+Simulated connection errors verify failure handling without depending
+on a live service outage.
 
 These experiences reinforced the need to run suggested code and inspect
 its behavior before accepting it as complete.
 
 ### System Design Trade-Offs
 
-Python rules make ranking and constraint checks reproducible. Their
-limited request patterns and fixed preferences reduce flexibility.
+Python rules make ranking and constraint checks reproducible. Limited
+request patterns and fixed preferences reduce flexibility.
 
 Gemini makes explanations easier to read, but introduces latency,
 service dependencies, and possible wording errors.
 
-Human approval adds one interaction when matches are scarce. That
+Human approval adds an interaction when matches are scarce. That
 interaction makes a change to the listener's preference explicit.
 
-Using instrumentalness as a tie-break applies the guide's preference
-without adding a new numeric score bonus. Its influence is limited to
-equal primary scores.
+Instrumentalness tie-breaking applies a secondary preference without
+adding a new numeric score bonus. Its influence is limited to equal
+primary scores.
+
+Fallback explanations preserve access to catalog recommendations during
+handled generation failures.
 
 ### Personal Reflection
 
-My original learning moment was seeing Gym Hero rank above Rooftop
-Lights for the High-Energy Pop profile. The genre bonus was worth more
-than the mood match, which explained a result I had not expected.
+My original learning moment was seeing Gym Hero rank above Rooftop Lights
+for High-Energy Pop. The genre bonus was worth more than the mood match,
+which explained a result I had not expected.
 
 Project 4 extended that lesson. Retrieval, ranking, generation, and
 verification each need to serve the listener's request. An explanation
-can sound reasonable while a filter is incomplete, and a working API
-call can be followed by a service failure.
+can sound reasonable while a filter is incomplete, and a working API call
+can be followed by a service failure.
 
 I learned to inspect outputs, revise assumptions, test failure cases,
-and keep evidence of the decisions made during development.
+and keep evidence of decisions made during development.
 
 ---
 
 ## 11. Future Improvements
 
-- Add safe handling for network transport exceptions.
+- Add dedicated timeout tests and broader network-failure scenarios.
 - Expand factual checks for generated explanations, including numeric
   comparisons and approved-alternative wording.
 - Test instrumentalness preference activation and missing metadata
@@ -753,9 +788,11 @@ The verified live model for the recorded comparison is
 Configuration uses the `GEMINI_API_KEY` and `GEMINI_MODEL`
 environment variables.
 
-Dependencies are currently unpinned. Exact package-version reproduction
-has not yet been established, and final setup verification from a fresh
-clone remains pending.
+Dependencies include `pandas`, `pytest`, `streamlit`, `google-genai`,
+and `httpx2`. Dependencies are currently unpinned. Exact package-version
+reproduction has not yet been established.
+
+Final setup verification from a fresh clone remains pending.
 
 | File | Purpose |
 |---|---|
@@ -766,7 +803,7 @@ clone remains pending.
 | `src/curator.py` | Workout handling and activity routing |
 | `src/study_curator.py` | Studying filters, instrumentalness tie-breaking, and approved genre broadening |
 | `src/guide_retriever.py` | Guide-section retrieval |
-| `src/llm_client.py` | Model generation and response validation |
+| `src/llm_client.py` | Model generation, network-error handling, and response validation |
 | `src/prompts.py` | Baseline and specialized prompts |
 | `tests/` | Automated behavior checks |
 | `evaluate.py` | Predefined CLI evaluation cases |
@@ -776,5 +813,5 @@ clone remains pending.
 | `evidence/` | Recorded executions and comparison results |
 
 The Project 4 README and Mermaid architecture source have been created.
-Final documentation consistency checks, remaining reliability work,
-the presentation, and fresh-clone verification are still pending.
+Final documentation checks, refreshed execution evidence, the
+presentation, and fresh-clone verification are still pending.

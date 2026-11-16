@@ -16,8 +16,8 @@ tracks using the retrieved evidence.
 
 When a studying request has too few exact matches, the application asks
 before including other genres. Output validation and catalog-based
-fallback explanations help it handle invalid model responses and API
-failures.
+fallback explanations help it handle invalid model responses, API
+errors, and connection failures.
 
 ## Original Project and Extensions
 
@@ -34,7 +34,7 @@ Project 4 adds:
 - Gemini explanations grounded in retrieved evidence.
 - Human approval before broadening a studying search.
 - Instrumentalness as a tie-break preference for studying.
-- Model-output validation and API-error fallback.
+- Model-output validation and generation-failure fallback.
 - Few-shot specialized explanations.
 - Automated tests, a CLI evaluation harness, and a live prompt comparison.
 
@@ -75,8 +75,8 @@ An explicit `y` or `yes`, ignoring capitalization and surrounding spaces,
 authorizes broadening. Declining, pressing Enter, or reaching end-of-input
 preserves the requested genre.
 
-The broader search retains the studying mood and energy restrictions,
-including the instrumentalness tie-break preference.
+The broader search retains the studying mood and energy restrictions
+and the instrumentalness tie-break preference.
 
 ### Grounded Generation
 
@@ -93,11 +93,16 @@ The application verifies:
 - An explanation for every selected track.
 - Explanation length between 1 and 50 words.
 
-It displays an identified catalog-based fallback when a handled API
-error or invalid response prevents successful generation.
+A handled API error or invalid model response triggers an identified
+catalog-based fallback.
 
-These structural checks do not establish the factual accuracy of every
-generated sentence.
+Connection failures and network timeouts are converted into a handled
+error that also triggers the fallback. Simulated tests verify
+connection-failure handling in the model client and CLI. A dedicated
+timeout-specific test remains pending.
+
+Structural checks validate response format and IDs. Factual accuracy
+of generated sentences requires additional review.
 
 ### Specialized Explanations
 
@@ -133,7 +138,7 @@ The original three-profile demo is a separate CLI path.
 | `src/curator.py` | Workout requests and activity routing |
 | `src/study_curator.py` | Studying filters, tie-breaking, and approved genre broadening |
 | `src/guide_retriever.py` | Activity-guide retrieval |
-| `src/llm_client.py` | Gemini generation and response validation |
+| `src/llm_client.py` | Gemini generation, network-error handling, and response validation |
 | `src/prompts.py` | Baseline and specialized prompts |
 | `data/songs.csv` | Existing 18-song catalog |
 | `data/curation_guides.md` | Custom activity guidance |
@@ -158,6 +163,7 @@ pandas
 pytest
 streamlit
 google-genai
+httpx2
 ```
 
 The current interface is a command-line application.
@@ -328,9 +334,9 @@ wrapped lines are condensed for readability. Full recorded logs are
 linked below.
 
 The studying excerpts were recorded before the instrumentalness
-tie-break was added. They document the observed approval and generation
-behavior at that stage. The current studying output also includes
-instrumentalness evidence in catalog-based explanations.
+tie-break was added. They document approval and generation behavior
+at that stage. Current catalog-based studying explanations also include
+instrumentalness evidence.
 
 Live explanations can vary across runs.
 
@@ -458,6 +464,24 @@ Reason: 504 DEADLINE_EXCEEDED.
 
 The application then displayed the verified catalog recommendations.
 
+### Simulated Connection-Failure Verification
+
+The model-client test raises a simulated connection error and verifies
+that it becomes a handled application error.
+
+The CLI test simulates a failure while creating the Gemini client.
+It verifies that the application displays:
+
+```text
+AI explanation unavailable. Showing catalog-based explanations.
+```
+
+It also verifies that Neon Tide, Storm Runner, and Gym Hero remain in
+the displayed catalog recommendations.
+
+These connection-failure checks use simulated errors and make no live
+API requests.
+
 ### Full Execution Logs
 
 - [Workout AI execution](evidence/workout_ai.txt)
@@ -471,14 +495,15 @@ The application then displayed the verified catalog recommendations.
 
 ### Automated Tests
 
-Latest verified result after implementing instrumentalness tie-breaking:
+Latest verified result after adding network-failure handling and CLI
+fallback tests:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-39 passed in 1.19s
+41 passed in 0.89s
 ```
 
 Coverage includes:
@@ -491,8 +516,10 @@ Coverage includes:
 - Approved and declined broader searches.
 - Missing approval input.
 - Model JSON, IDs, duplicates, completeness, and length.
-- Instrumentalness breaking equal-score ties before results are truncated.
+- Instrumentalness breaking equal-score ties before result truncation.
 - Primary relevance taking priority over instrumentalness.
+- Conversion of simulated connection failures into handled errors.
+- CLI fallback after a simulated connection failure.
 
 The instrumentalness test uses controlled tracks. It confirms that a
 stronger mood match ranks first and that higher instrumentalness selects
@@ -522,20 +549,20 @@ Pass rate: 100%
 ```
 
 The pass rate applies to these eight predefined scenarios. Listener
-satisfaction and the factual accuracy of every generated sentence
-require separate evaluation.
+satisfaction and factual explanation quality require separate evaluation.
 
-### Human Review of Observed Behavior
+### Review of Observed and Tested Behavior
 
-| Case | Criterion | Observed result |
-|---|---|---|
-| Initial workout filter | Respect upbeat intent | Needed revision — energy-only filtering selected a sad track |
-| Revised workout filter | Apply energy and suitable moods | Pass — Winter Signal excluded |
-| Jazz request, answer N | Preserve jazz | Pass — one exact match |
-| Jazz request, answer y | Broaden only with approval | Pass — jazz match and two eligible lofi tracks |
-| Approved AI explanations | Identify alternative genres | Pass in recorded run |
-| Numeric explanation wording | Distinguish nearby and exact values | Needs improvement — some wording is imprecise |
-| API 503/504 response | Provide an identified fallback | Pass in observed runs |
+| Case | Criterion | Result | Evidence type |
+|---|---|---|---|
+| Initial workout filter | Respect upbeat intent | Needed revision — selected a sad track | Manual execution review |
+| Revised workout filter | Apply energy and suitable moods | Pass — Winter Signal excluded | Execution and tests |
+| Jazz request, answer N | Preserve jazz | Pass — one exact match | Execution and tests |
+| Jazz request, answer y | Broaden only with approval | Pass — jazz match and eligible lofi tracks | Execution and tests |
+| Approved AI explanations | Identify alternative genres | Pass in recorded run | Live execution review |
+| Numeric explanation wording | Distinguish nearby and exact values | Needs improvement | Live execution review |
+| API 503/504 response | Provide an identified fallback | Pass in observed runs | Live execution review |
+| Connection failure | Preserve catalog recommendations | Pass | Simulated automated tests |
 
 ## Stretch Features and Evidence
 
@@ -547,7 +574,7 @@ The initial workout filter used energy alone and recommended Winter
 Signal. Adding suitable mood rules removed that sad track. The revised
 playlist contained Neon Tide, Storm Runner, and Gym Hero.
 
-A guide-threshold test also confirms that changing the retrieved minimum
+A guide-threshold test confirms that changing the retrieved minimum
 energy changes which tracks are eligible.
 
 For studying, the retrieved guide activates an instrumentalness
@@ -599,15 +626,15 @@ The verified run passed **8/8 cases**.
 
 | Decision | Reason and trade-off |
 |---|---|
-| Reuse Project 3 scoring | Keeps ranking inspectable, while inheriting its weighting assumptions |
-| Retrieve activity guidance | Makes rules traceable to a document, but requires predictable guide formatting |
+| Reuse Project 3 scoring | Keeps ranking inspectable while inheriting its weighting assumptions |
+| Retrieve activity guidance | Makes rules traceable to a document but requires predictable formatting |
 | Keep selection in Python | Provides reproducible ranking and constraint handling |
 | Use Gemini for explanations | Adds readable explanations with service dependency and wording risks |
 | Require approval to broaden genre | Gives listeners control over changing an explicit preference |
-| Use instrumentalness for equal scores | Applies the guide's preference while keeping primary relevance first |
-| Validate model output | Rejects structural errors while semantic accuracy needs further evaluation |
+| Use instrumentalness for equal scores | Applies a secondary preference while keeping primary relevance first |
+| Validate model output | Rejects structural errors while semantic accuracy requires further evaluation |
 | Preserve catalog fallback | Keeps recommendations available during handled generation failures |
-| Separate live and simulated checks | Supports repeatable tests alongside recorded live generation |
+| Simulate network errors in tests | Exercises failure handling without relying on a live outage |
 
 ## Preserved Project 3 Features
 
@@ -655,13 +682,14 @@ in [model_card.md](model_card.md) and
 - The catalog is small and contains illustrative metadata.
 - Request parsing supports specific documented patterns.
 - Activity moods and thresholds reflect design assumptions.
-- Guide parsing depends on the documented phrases and section headings.
+- Guide parsing depends on documented phrases and section headings.
 - Structural validation does not verify every generated factual claim.
 - Live generation can fail or vary between runs.
 - Instrumentalness affects only equal primary scores, so its influence
   may be limited with the current catalog.
 - Missing instrumentalness values default to `0.0`.
-- Network transport exceptions need additional safe handling.
+- Dedicated timeout tests and broader failure-condition testing remain
+  future improvements.
 - Dependencies are currently unpinned. Exact package-version reproduction
   has not yet been established.
 - Final setup verification from a fresh clone is pending.
@@ -674,9 +702,10 @@ with an upbeat mood, and a readable explanation can contain imprecise
 wording.
 
 I learned to inspect outputs, revise rules, test failure cases, and
-preserve evidence of the system's behavior. Adding instrumentalness
-tie-breaking also showed how a secondary preference can affect selection
-while primary relevance remains the main ranking criterion.
+preserve evidence of the system's behavior. Instrumentalness tie-breaking
+showed how a secondary preference can influence selection. Simulated
+connection failures helped verify that the application remains usable
+when generation fails.
 
 The graded responsible-AI reflection, accepted and revised AI
 suggestions, limitations, misuse analysis, and testing surprises are in

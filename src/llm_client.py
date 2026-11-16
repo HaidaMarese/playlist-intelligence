@@ -5,6 +5,7 @@ import os
 
 from google import genai
 from google.genai import types
+from httpx2 import TransportError
 
 from .prompts import build_prompt
 
@@ -45,18 +46,24 @@ def generate_explanations(
         specialized=specialized,
     )
 
-    with genai.Client(
-        api_key=api_key,
-        http_options=types.HttpOptions(timeout=60000),
-    ) as client:
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                max_output_tokens=2048,
-            ),
-        )
+    try:
+        with genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=60000),
+        ) as client:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=2048,
+                ),
+            )
+    except (TransportError, OSError) as error:
+        raise ValueError(
+            "Could not complete the Gemini request because of "
+            "a connection failure or network timeout."
+        ) from error
 
     try:
         items = json.loads(response.text or "")

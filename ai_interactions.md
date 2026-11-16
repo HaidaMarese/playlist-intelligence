@@ -274,16 +274,18 @@ These are paraphrases of my requests during development.
 - Check our progress against Steps 0–6 and the submission requirements.
 - Update the README, model card, and interaction log to match verified
   implementation results.
+- Update the model client to handle connection failures and add tests
+  that verify the catalog fallback.
 
 **What did the assistant generate or change?**
 
 - `src/curator.py` validates workout requests and applies retrieved rules.
 - `src/guide_retriever.py` retrieves activity sections from the custom guide.
 - `data/curation_guides.md` defines workout and studying guidance.
-- `src/llm_client.py` sends retrieved evidence to Gemini and validates
-  returned explanation records.
-- `src/study_curator.py` ranks studying tracks, applies an instrumentalness
-  tie-break, and supports approved searches across other genres.
+- `src/llm_client.py` generates explanations, validates responses, and
+  converts network errors into handled application errors.
+- `src/study_curator.py` applies studying rules, instrumentalness
+  tie-breaking, and approved genre broadening.
 - `src/main.py` connects requests, retrieval, ranking, approval,
   generation, fallback, and table output.
 - `src/prompts.py` builds baseline and specialized prompts.
@@ -307,8 +309,11 @@ I checked the Python interpreter after package installation used my
 user-wide Python installation. Reactivating the project's `.venv`
 restored the intended interpreter.
 
-I also removed an unused `energy_pattern` variable from the comparison
-script and used the corrected regular expressions supplied afterward.
+I removed an unused `energy_pattern` variable from the comparison
+script and applied the corrected regular expressions.
+
+I also corrected a character-encoding problem in the evaluation log
+title by replacing its long dash with a standard hyphen.
 
 ### Multi-Source Retrieval and Grounded Generation
 
@@ -370,8 +375,8 @@ unavailable to new users. Successful full playlist generation was
 verified with `gemini-3.5-flash-lite`.
 
 Generated explanations sometimes used imprecise wording about nearby
-and exact energy values. Structural validation does not establish the
-accuracy of every sentence.
+and exact energy values. Structural validation checks format and IDs.
+Factual wording still needs review.
 
 ### Agentic Workflow Enhancement — Studying Playlist Approval
 
@@ -484,7 +489,7 @@ When the retrieved guide contains the documented instrumental-preference
 sentence, candidates are preordered by descending instrumentalness.
 
 The existing ranker preserves that order for equal primary scores.
-Higher primary relevance still ranks first.
+Higher primary relevance ranks first.
 
 Missing instrumentalness values default to `0.0`. Equal scores and equal
 instrumentalness preserve catalog order.
@@ -512,7 +517,9 @@ Higher Instrumentalness
 The test confirms that primary relevance takes priority and that
 instrumentalness resolves equal scores before results are truncated.
 
-After the update:
+**Historical verification milestone**
+
+After the instrumentalness update:
 
 ```cmd
 python -m pytest -q
@@ -571,7 +578,7 @@ Average length decreased by approximately 31%.
 
 Both styles used correct catalog mood and energy facts in the observed
 outputs. Label scores measure compliance with the specialized style.
-They do not establish overall factual accuracy.
+Overall factual accuracy requires separate review.
 
 This comparison used one live generation per style. Results may vary.
 
@@ -628,6 +635,54 @@ The saved output is available in
 This harness verifies its predefined CLI scenarios. Simulated model
 tests and recorded live generation provide separate evidence.
 
+### Network-Failure Handling
+
+**What task was addressed?**
+
+I wanted connection failures to trigger the catalog fallback instead of
+ending the application with an unhandled traceback.
+
+**What changed in the application?**
+
+- `src/llm_client.py` catches `httpx2.TransportError` and `OSError`.
+- It converts those errors into a `ValueError` with an actionable message.
+- The existing CLI handler displays the fallback notice and catalog
+  recommendations.
+- `httpx2` is listed as a direct dependency in `requirements.txt`.
+
+**What did you verify?**
+
+Two simulated tests exercise different parts of the workflow.
+
+| Test | Simulated failure | Verified behavior |
+|---|---|---|
+| Model-client test | `ConnectError` during generation | Converted into a handled `ValueError` |
+| CLI fallback test | `ConnectError` while creating the client | Fallback notice and catalog recommendations displayed |
+
+The CLI test verifies that the output includes:
+
+```text
+AI explanation unavailable. Showing catalog-based explanations.
+```
+
+It also verifies that Neon Tide, Storm Runner, and Gym Hero are displayed
+and that the output does not report successful Gemini generation.
+
+These tests make no live API calls.
+
+Network timeout exceptions are covered by the transport-error handler.
+A dedicated timeout-specific test is still pending.
+
+**Latest observed suite result**
+
+```cmd
+python -m pytest -q
+```
+
+```text
+41 passed in 0.89s
+```
+
 ### Architecture and Documentation
 
 The implemented request workflow is documented in the Mermaid source:
@@ -648,22 +703,24 @@ specialization comparison.
 
 | Check | Latest verified result |
 |---|---|
-| Automated tests | 39 passed |
+| Automated tests | 41 passed |
 | CLI evaluation harness | 8/8 cases passed |
 | Workout Gemini explanations | Successful recorded run |
 | Studying Gemini explanations | Successful observed run |
 | Approved alternative genres with Gemini | Successful recorded run |
 | Specialized prompt comparison | Outputs and measurements saved |
 | Instrumentalness tie-breaking | Controlled automated test passed |
+| Model-client connection failure | Simulated test passed |
+| CLI connection-failure fallback | Simulated test passed |
 
 ### Remaining Project 4 Verification
 
-- Add safe handling for network transport exceptions.
+- Add dedicated timeout tests as a future reliability improvement.
 - Continue factual evaluation of generated explanations.
 - Refresh final execution evidence after remaining code changes.
 - Check documentation for consistency with the final implementation.
 - Prepare the 5–7 minute Engineer's Pitch.
-- Finalize the portfolio reflection and presentation materials.
+- Finalize presentation materials and review the portfolio reflection.
 - Record and link a Loom walkthrough if included.
 - Verify setup, tests, and execution from a fresh clone.
 - Commit and push final changes before submission.

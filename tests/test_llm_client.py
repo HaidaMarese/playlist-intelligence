@@ -1,10 +1,11 @@
-"""Test model-output validation without making API calls."""
+"""Test model-output validation and network errors without API calls."""
 
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from httpx2 import ConnectError
 
 from src.llm_client import generate_explanations
 
@@ -150,3 +151,18 @@ def test_empty_recommendations_skip_generation(model_setup):
 
     assert generate_explanations("workout", [], guide) == []
     client.models.generate_content.assert_not_called()
+
+
+def test_network_failure_becomes_handled_error(model_setup):
+    """Convert a transport failure into a handled application error."""
+    client, recommendations, guide = model_setup
+    client.models.generate_content.side_effect = ConnectError(
+        "Simulated connection failure"
+    )
+
+    with pytest.raises(ValueError, match="connection failure"):
+        generate_explanations(
+            "Give me 1 upbeat song for a workout",
+            recommendations,
+            guide,
+        )
