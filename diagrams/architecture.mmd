@@ -1,8 +1,10 @@
 flowchart TD
-    Request["Listener enters a playlist request"] --> Validate{"Is the request valid?"}
+    CLI["Listener enters a CLI request"] --> Validate{"Is the request valid?"}
+    UI["Listener selects Streamlit preferences"] --> Build["Build playlist request"]
+    Build --> Validate
 
     Validate -->|No| Error["Display a validation message"]
-    Validate -->|Yes| Retrieve["Retrieve the activity guide"]
+    Validate -->|Yes| Retrieve["Retrieve activity guidance"]
 
     Guide["data/curation_guides.md"] --> Retrieve
     Retrieve --> Rank["Filter and rank matching songs"]
@@ -13,27 +15,35 @@ flowchart TD
     Shortage -->|Yes| Approval{"Listener approves other genres?"}
 
     Approval -->|No or no input| Matches
-    Approval -->|Yes| Broaden["Filter and rank across genres using the same mood and energy rules"]
+    Approval -->|Yes| Broaden["Filter and rank other genres using the same activity rules"]
 
     Catalog --> Broaden
     Retrieve --> Broaden
     Broaden --> Matches
 
     Matches -->|No| Empty["Display a no-matches message"]
-    Matches -->|Yes| UseAI{"Is AI enabled?"}
+    Matches -->|Yes| UseAI{"Are AI explanations enabled?"}
 
-    UseAI -->|No| Display["Display songs, scores, explanations, and sources"]
-    UseAI -->|Yes| Prompt["Build a baseline or specialized prompt"]
+    UseAI -->|No| Result["Use catalog explanations"]
+    UseAI -->|Yes| Prompt["Build baseline or specialized prompt"]
 
-    Prompt --> Gemini["Gemini generates explanations from retrieved evidence"]
-    Gemini -->|API error| Fallback["Display a fallback notice and use catalog explanations"]
-    Gemini -->|Response| Verify{"Valid JSON, song IDs, completeness, and explanation length?"}
+    Prompt --> Gemini["Gemini generates grounded explanations"]
+    Gemini -->|API or network error| Fallback["Identify catalog fallback"]
+    Gemini -->|Response| Verify{"Valid JSON, IDs, completeness, and length?"}
 
     Verify -->|No| Fallback
-    Verify -->|Yes| Display
-    Fallback --> Display
+    Verify -->|Yes| Result
+    Fallback --> Result
 
-    Evaluation["evaluate.py runs predefined CLI cases"] -.-> Request
+    Result --> Interface{"Which interface?"}
+    Interface -->|CLI| Terminal["Print songs, scores, and explanations"]
+    Interface -->|Streamlit| Cards["Display cards, summary metrics, and evidence"]
+
+    Cards --> Download["Optional playlist CSV download"]
+    Cards --> Clear["Clear displayed results"]
+
+    Evaluation["evaluate.py runs CLI scenarios"] -.-> CLI
     Tests["pytest automated tests"] -.-> Rank
     Tests -.-> Approval
     Tests -.-> Verify
+    Tests -.-> Fallback

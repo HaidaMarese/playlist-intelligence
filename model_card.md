@@ -14,8 +14,8 @@ and table output.
 
 Project 4 adds activity-guide retrieval, playlist requests, Gemini
 explanations, output validation, listener approval before broadening
-a studying search, instrumentalness tie-breaking, and network-failure
-handling.
+a studying search, instrumentalness tie-breaking, network-failure
+handling, and a Streamlit visual interface.
 
 ---
 
@@ -24,8 +24,17 @@ handling.
 Playlist Intelligence is an educational application that helps listeners
 explore a small song catalog and understand why tracks were recommended.
 
-The current command-line application supports workout requests and
-genre-specific studying requests.
+The application provides two interfaces that reuse the recommendation
+and generation modules.
+
+| Interface | Intended interaction |
+|---|---|
+| Command line | Enter supported requests and run reproducible demonstrations |
+| Streamlit | Select preferences, review recommendations, approve alternatives, and download results |
+
+Both interfaces support workout and genre-specific studying requests.
+
+### Command-Line Examples
 
 ```cmd
 python -m src.main --request "Give me 3 upbeat songs for a workout"
@@ -39,16 +48,24 @@ The original three-profile demonstration remains available:
 python -m src.main
 ```
 
-Gemini explanations are enabled with `--ai`. A specialized explanation
-style is enabled with `--ai --specialized`.
+Gemini explanations are enabled with `--ai`. The specialized style is
+enabled with `--ai --specialized`.
+
+### Visual Interface
+
+```cmd
+python -m streamlit run streamlit_app.py
+```
+
+Listeners choose an activity, count, and studying genre. They can enable
+AI explanations, review catalog evidence, download a CSV, and clear
+displayed results.
 
 The system supports classroom demonstrations, portfolio review, and
-experimentation with retrieval, ranking, AI explanations, and reliability
-testing.
+experimentation with retrieval, ranking, AI explanations, and reliability.
 
 Recommendations come from the supplied catalog. Listener enjoyment has
-not been measured. The application currently provides recommendations
-and explanations through a command-line interface.
+not been measured.
 
 ---
 
@@ -67,133 +84,155 @@ favorite genre, favorite mood, and target energy.
 The maximum default score is **4 points**. Scores represent rule-based
 relevance. They are not probabilities or calibrated confidence values.
 
-The original demo ranks the catalog and displays up to five songs per
-profile. Equal scores preserve catalog order.
+The original demo displays up to five songs per profile. Equal scores
+preserve catalog order.
 
-The optional Energy-Focused mode uses genre, mood, and energy weights
-of `(1.0, 1.0, 2.0)`. Advanced scoring adds contributions from illustrative
-metadata, and artist diversity can apply a 0.50-point penalty.
+Energy-Focused mode uses genre, mood, and energy weights of
+`(1.0, 1.0, 2.0)`. Advanced scoring adds contributions from illustrative
+metadata. Artist diversity can apply a 0.50-point penalty.
 
 ### Project 4 Retrieval and Activity Rules
 
-The application retrieves information from two sources:
+The application retrieves information from two sources.
 
-- `data/songs.csv` provides track records.
-- `data/curation_guides.md` provides activity guidance.
+| Source | Retrieved information |
+|---|---|
+| `data/songs.csv` | Track records and attributes |
+| `data/curation_guides.md` | Activity-specific guidance |
 
 For workouts, the guide defines:
 
 - Target energy of `0.90`.
 - Minimum energy of `0.75`.
-- Suitable mood tags of happy, energizing, intense, aggressive,
+- Suitable moods of happy, energizing, intense, aggressive,
   playful, and uplifting.
 
 For studying, the guide defines:
 
 - Target energy of `0.35`.
 - Maximum energy of `0.50`.
-- Suitable mood tags of chill, focused, relaxed, and peaceful.
-- A preference for instrumental tracks when other preferences are equal.
+- Suitable moods of chill, focused, relaxed, and peaceful.
+- An instrumental preference when other preferences are equal.
 
-Python reads these rules, filters the catalog, and ranks eligible tracks.
-The workout profile favors energizing tracks. The studying profile
-favors the requested genre and focused mood.
+Python applies the retrieved rules and ranks eligible tracks.
+Workout ranking favors energizing tracks. Studying ranking favors the
+requested genre and focused mood.
 
 ### Instrumentalness Tie-Breaking
 
-When the retrieved studying guide requests the instrumental preference,
-higher instrumentalness breaks ties between tracks with equal primary
-scores.
+When the studying guide requests the instrumental preference, higher
+instrumentalness breaks ties between equal primary scores.
 
 Instrumentalness uses the catalog's 0–1 values. Missing values default
 to `0.0`.
 
 Candidates are preordered by instrumentalness. The existing ranker
-preserves that order when primary scores are equal, including when
-selecting the final number of tracks.
+preserves this order for equal primary scores before selecting the
+requested number of tracks.
 
-Genre, mood, and energy relevance remain the primary ranking criteria.
-If both score and instrumentalness are equal, catalog order is preserved.
+Genre, mood, and energy relevance determine the primary score.
+Equal scores and equal instrumentalness preserve catalog order.
 
-Catalog-based explanations include the instrumentalness value and
-identify its role as a tie-break preference.
+Catalog-based explanations identify the instrumentalness value and
+its role as a tie-break preference.
 
 ### Human-in-the-Loop Workflow
 
 The initial studying search preserves the requested genre.
 
 When fewer tracks match than requested, the application asks whether
-the listener approves including other genres. Explicit approval triggers
-another search while preserving the studying mood and energy rules.
+the listener approves other genres. Approval triggers another search
+with the same studying mood and energy restrictions.
 
-Only `y` or `yes`, ignoring capitalization and surrounding spaces,
+In the CLI, `y` or `yes`, ignoring capitalization and surrounding spaces,
 authorizes broadening. Declining, pressing Enter, or reaching end-of-input
 preserves the original genre constraint.
 
+In Streamlit, the listener chooses **Include other genres** or
+**Keep my genre**.
+
 The instrumentalness preference also applies to the broader search.
 
-Catalog explanations label tracks from other genres as approved
-alternatives. When Gemini is enabled, its input includes the listener's
-approval.
+Catalog explanations label approved alternatives. Gemini's input
+includes the listener's approval when AI explanations are enabled.
 
 ### Retrieval-Augmented Generation
 
-Python selects the tracks. Gemini generates explanations using the
-listener request, retrieved guide, selected catalog records, and ranking
-evidence.
+Python selects the tracks. Gemini writes explanations using the
+listener request, retrieved guide, selected records, and ranking evidence.
 
-The generator is instructed to use the supplied facts. It returns JSON
-records containing song IDs and explanations.
+The generator returns JSON records containing song IDs and explanations.
 
-The application verifies that:
+The application verifies:
 
-- The response is a JSON list.
-- Each record has an expected integer song ID.
-- Song IDs are unique.
-- Every selected song has an explanation.
-- Each explanation contains between 1 and 50 words.
+- JSON list format.
+- Expected integer song IDs.
+- Unique song IDs.
+- An explanation for every selected song.
+- Explanation length between 1 and 50 words.
 
-The application attaches source references and displays titles, artists,
-and scores from its catalog records.
+It attaches source references and displays titles, artists, and scores
+from catalog records.
 
 ### Specialized Prompting
 
-The specialized prompt adds illustrative few-shot examples. It requests:
+The specialized prompt adds illustrative few-shot examples and requests:
 
 - Explanations of at most 25 words.
 - An explicit `Mood:` label with the catalog mood.
-- An explicit `Energy:` label with energy formatted to two decimal places.
+- An explicit `Energy:` label formatted to two decimal places.
 - A connection to the requested activity.
 - Identification of approved alternative genres.
 - Precise wording about exact and nearby energy values.
 
-The shared output validator enforces a maximum of 50 words. Compliance
-with the specialized 25-word target is measured in the comparison.
+The shared validator enforces 50 words. The comparison measures compliance
+with the specialized 25-word target.
 
 ### API and Network-Failure Handling
 
-For handled API errors or invalid model output, the application displays
-catalog-based explanations and identifies the fallback.
+Handled API errors and invalid responses trigger identified catalog
+fallback explanations.
 
 The model client catches `httpx2.TransportError` and `OSError`, converting
-them into a handled application error. The CLI then displays a fallback
-notice and catalog-based recommendations.
+them into a handled application error.
 
-Two simulated tests verify connection-failure handling:
+Two simulated tests verify:
 
 - A connection error during generation becomes a handled error.
 - A connection error during client creation triggers the CLI fallback
-  and preserves the catalog recommendations.
+  and preserves recommendations.
 
-Network timeout exceptions are covered by the transport-error handler.
+Timeout exceptions are covered by the transport-error handler.
 A dedicated timeout-specific test remains a future improvement.
+
+The Streamlit interface also catches handled generation errors and
+identifies its catalog fallback. Its failure path has not received a
+separate automated interface test.
+
+### Visual Presentation and Export
+
+The Streamlit interface uses form submission and session state to
+associate results and approval decisions with submitted preferences.
+
+It displays:
+
+- Recommendation cards.
+- Track count, distinct artist count, and average energy.
+- Catalog attributes and expandable evidence.
+- Approved-alternative labels.
+- Explanation mode and fallback notices.
+
+CSV export includes displayed track records, scores, explanation mode,
+and explanations.
+
+The background is an SVG illustration embedded in `streamlit_app.py`.
 
 ---
 
 ## 4. Data
 
 The catalog contains **18 songs**. I kept all 10 starter songs and added
-eight fictional tracks to expand the range of genres and moods.
+eight fictional tracks to expand genres and moods.
 
 The CSV contains:
 
@@ -204,16 +243,16 @@ The CSV contains:
   and vocal language.
 
 The five advanced attributes were added as illustrative metadata during
-Project 3. They are not verified measurements from a music service.
+Project 3. They are not verified music-service measurements.
 
 The catalog covers pop, lofi, rock, ambient, jazz, synthwave, indie pop,
 electronic, country, soul, metal, classical, disco, folk, and reggae.
 
 The data contains no listener ratings, listening history, or feedback
-about actual recommendation quality.
+about recommendation quality.
 
-The custom activity guide reflects project design choices. Its mood
-labels and thresholds may not fit every listener.
+The custom guide reflects project design choices. Its mood labels and
+thresholds may not fit every listener.
 
 ---
 
@@ -221,54 +260,62 @@ labels and thresholds may not fit every listener.
 
 ### Transparent Ranking
 
-The scoring explanations make it possible to inspect why tracks rank
-above one another.
+Scoring explanations make ranking decisions inspectable.
 
-In the original demo, Sunrise City ranked first for High-Energy Pop
-with **3.97**. Its pop genre, happy mood, and energy of `0.82` matched
-the profile's preferences and `0.85` energy target.
+In the original demo:
 
-Library Rain ranked first for Chill Lofi with **3.90**, and Storm Runner
-ranked first for Deep Intense Rock with **3.99**.
+| Profile | First recommendation | Score |
+|---|---|---:|
+| High-Energy Pop | Sunrise City | 3.97 |
+| Chill Lofi | Library Rain | 3.90 |
+| Deep Intense Rock | Storm Runner | 3.99 |
+
+Sunrise City's pop genre, happy mood, and energy of `0.82` fit the
+High-Energy Pop profile and its `0.85` target.
 
 ### Retrieved Guidance Changes Behavior
 
-The workout filter initially considered energy alone and selected
-Winter Signal, which is tagged sad and melancholic.
+The initial energy-only workout filter selected Winter Signal, which
+has sad and melancholic tags.
 
-Adding suitable mood rules removed it from the workout recommendations.
-The revised playlist contained Neon Tide, Storm Runner, and Gym Hero.
+Adding suitable mood rules removed it. The revised playlist contained
+Neon Tide, Storm Runner, and Gym Hero.
 
-An automated test confirms that increasing the retrieved minimum energy
-threshold removes a lower-energy candidate.
+An automated test confirms that increasing the retrieved energy threshold
+removes a lower-energy candidate.
 
-The studying guide's instrumental preference affects selection when
-primary scores are equal.
+The studying guide also activates instrumentalness tie-breaking.
 
 ### Listener Control
 
-A request for three calm jazz songs for studying finds one exact match,
-Coffee Shop Stories.
+A three-track jazz studying request finds Coffee Shop Stories as its
+single exact match.
 
-The application preserves that genre constraint until the listener
-approves alternatives. After approval, Focus Flow and Library Rain can
-be included while retaining the studying energy and mood restrictions.
+Other genres are included after approval. Focus Flow and Library Rain
+then become eligible alternatives under the studying rules.
 
 ### Grounded Explanations and Fallback
 
-Successful Gemini runs explained selected tracks using their catalog
-mood and energy values.
+Successful Gemini runs used catalog mood and energy values.
 
 Observed API-error runs continued displaying catalog recommendations.
-Simulated connection-failure tests also verified fallback behavior.
+Simulated connection-failure tests verified the model-client and CLI
+fallback paths.
+
+### Accessible Visual Workflow
+
+The Streamlit interface exposes preferences, approval decisions,
+recommendation explanations, and catalog evidence through visual controls.
+
+Manual checks confirmed recommendations, approval choices, CSV download,
+clearing results, and Gemini explanations.
 
 ### Verified Installation
 
-A separate clone installed successfully on Windows, passed dependency
-checks, passed all 41 tests, and passed all eight CLI evaluation cases.
+A separate Windows clone installed successfully, passed dependency
+checks, passed 41 tests, and passed eight CLI evaluation cases.
 
-A studying request also returned the expected tracks with scores,
-instrumentalness evidence, and guide references.
+A studying request returned the expected tracks and evidence.
 
 ---
 
@@ -276,92 +323,94 @@ instrumentalness evidence, and guide references.
 
 ### Small and Uneven Catalog
 
-Several genres have only one track. The catalog cannot represent the
-range of artists, languages, cultures, or preferences in real music
-listening.
+Several genres contain only one track. Coverage is too limited to
+represent real music preferences or cultural diversity.
 
-Sparse coverage can make a request impossible to satisfy fully.
+Some requests cannot be fully satisfied.
 
 ### Subjective Activity Rules
 
-Mood labels, suitable workout moods, and studying thresholds reflect
-design assumptions. Including aggressive tracks in a workout playlist
-may suit some listeners and exclude others.
+Mood labels and activity thresholds reflect design assumptions.
+Aggressive tracks may suit some workout listeners and exclude others.
 
-The instrumental preference assumes that higher instrumentalness can
-help distinguish otherwise equally relevant studying tracks. This
-assumption has not been evaluated with listeners.
+The instrumental preference has not been evaluated with listeners.
 
 ### Limited Request Language
 
-The application accepts specific request patterns. More flexible input,
-multiple activities, and arbitrary combinations of preferences require
-further development.
+The CLI accepts specific patterns. Streamlit builds supported requests
+from form selections.
+
+More flexible language and combinations of preferences require further
+development.
 
 ### Ranking Bias
 
-The original genre bonus can place an exact genre match above a track
-that better matches mood and energy.
+Exact genre bonuses can outweigh stronger mood or energy alignment.
 
-Repeatedly favoring exact genres can reduce exposure to relevant tracks
-from other genres. Approval-based broadening gives listeners control
-over one way to expand their results.
+Repeatedly favoring genres can reduce discovery. Approval-based
+broadening gives listeners control over one way to expand results.
 
 ### Metadata and Tie-Breaking Limits
 
 Baseline scoring does not use tempo, danceability, or acousticness.
 
-Instrumentalness affects only equal primary scores, so its influence
-may be limited with the current catalog.
+Instrumentalness affects equal primary scores. Its influence may be
+limited with the current catalog.
 
-A missing instrumentalness value defaults to `0.0`. This treats missing
-information like a low value and can disadvantage incomplete records
-when primary scores are equal.
+Defaulting missing instrumentalness to `0.0` can disadvantage incomplete
+records when scores are equal.
 
 ### Guide Format Dependency
 
-The retriever expects section headings, and the rule parser expects
-specific phrases for energy limits and suitable moods.
+Retrieval expects headings, and rule parsing expects documented phrases.
 
-The instrumental preference is activated by its documented sentence.
-Rewording that sentence can disable the preference.
+The instrumental preference depends on its documented sentence.
+Rewording it can disable that preference.
 
 ### Generated Wording
 
-Gemini can use imprecise language. During testing, it sometimes described
-a nearby energy value as matching the target.
+Some explanations describe nearby energy values as matching a target.
 
-Structural validation checks response format and IDs. A valid song ID
-can still have an explanation that needs factual correction.
+Structural checks validate format and IDs. Factual wording can still
+need correction.
 
 ### External Service Availability
 
-Live generation depends on model access, API limits, connectivity, and
-service availability.
+Live generation depends on access, quotas, connectivity, and service
+availability.
 
-Fallback behavior keeps catalog recommendations available during handled
-failures. Live AI explanations require a successful model response.
+Catalog fallback is available during handled failures.
+
+### Interface Limitations
+
+Visual interactions were checked manually. Automated coverage currently
+focuses on shared logic and CLI behavior.
+
+Some CSS selectors depend on Streamlit markup and may require revision
+after upgrades.
+
+Changing form values takes effect after submitting the form. Displayed
+results remain associated with the last submitted request.
 
 ### Evaluation Scope
 
-Automated tests check defined behaviors. Listener satisfaction and
-reliability across all possible inputs require broader evaluation.
+Tests cover predefined behaviors. Listener satisfaction requires
+separate evaluation.
 
-Connection-failure checks use simulated errors. Dedicated timeout tests
-and broader network-failure experiments remain future improvements.
+Connection failures are simulated. Dedicated timeout tests and broader
+network experiments remain future improvements.
 
 The prompt comparison used one request and one generation per style.
-More experiments are needed before generalizing the results.
 
 ### Reproducibility Scope
 
-Fresh-clone installation and catalog execution were verified on Windows.
+Fresh-clone verification covered the CLI revision before the visual
+interface was added.
 
-Live Gemini generation was verified separately during development.
-The fresh-clone verification did not include a live generation request.
+Live generation and Streamlit behavior were verified separately during
+development.
 
-Dependencies are unpinned, and full setup checks on macOS and Linux
-remain future work.
+Dependencies are unpinned. Full macOS and Linux checks remain future work.
 
 ---
 
@@ -369,11 +418,12 @@ remain future work.
 
 ### Project 3 Baseline Evaluation
 
-I ran the original CLI and confirmed that it loaded 18 songs and
-displayed five recommendations with scores and reasons for each profile.
+The original CLI loaded 18 songs and displayed five recommendations
+with scores and reasons for each profile.
+
 Both starter tests passed at that stage.
 
-| Profile | Preferred genre | Preferred mood | Target energy | First recommendation | Score |
+| Profile | Genre | Mood | Target energy | First recommendation | Score |
 |---|---|---|---:|---|---:|
 | High-Energy Pop | pop | happy | 0.85 | Sunrise City | 3.97 |
 | Chill Lofi | lofi | chill | 0.25 | Library Rain | 3.90 |
@@ -381,30 +431,23 @@ Both starter tests passed at that stage.
 
 ### Profile Comparisons
 
-- Sunrise City led High-Energy Pop because it matched the genre and
-  mood and was close to the higher energy target.
-- Library Rain led Chill Lofi because it matched both categories
-  and was close to the lower energy target.
-- Gym Hero earned genre points for High-Energy Pop and mood points
-  for Deep Intense Rock.
-- Spacewalk Thoughts benefited from the low energy target and chill
-  mood in the Chill Lofi profile.
-- Winter Signal ranked third for Deep Intense Rock because its energy
-  exactly matched the target, despite mismatched genre and mood.
+- Sunrise City matched the pop profile's genre and mood.
+- Library Rain matched the lofi profile's genre and mood.
+- Gym Hero earned genre points for pop and mood points for intense rock.
+- Spacewalk Thoughts benefited from the chill mood and low energy target.
+- Winter Signal earned its Deep Intense Rock score from energy similarity.
 
 ### Manual Weight Comparison
 
-For High-Energy Pop, Gym Hero scored **2.92** and Rooftop Lights scored
-**1.91** using the baseline weights.
+For High-Energy Pop, Gym Hero scored **2.92** and Rooftop Lights **1.91**
+with baseline weights.
 
 Giving mood two points and genre one point reversed their order.
-Rooftop Lights scored **2.91**, and Gym Hero scored **1.92**.
-
-The tracks and listener preferences stayed the same.
+Rooftop Lights scored **2.91**, and Gym Hero **1.92**.
 
 ### Project 3 Edge-Case Test
 
-I tested a profile requesting rock, a sad mood, and energy of `0.90`.
+I tested rock, sad mood, and target energy `0.90`.
 
 ```text
 Sad and High Energy - Top 5 Recommendations
@@ -421,88 +464,82 @@ Favorite genre: rock | Favorite mood: sad | Target energy: 0.90
    Reasons: energy similarity (+0.97)
 ```
 
-Storm Runner ranked first because the genre bonus outweighed Winter
+The genre bonus placed Storm Runner above Winter Signal despite Winter
 Signal's exact mood and energy matches.
 
-### Project 3 CLI Weight Experiment
+### Project 3 Weight Experiment
 
-I lowered genre weight from `2.0` to `1.0` and increased energy weight
-from `1.0` to `2.0`. Mood weight remained `1.0`.
+Genre weight changed from `2.0` to `1.0`, and energy weight from `1.0`
+to `2.0`. Mood weight stayed `1.0`.
 
 | Chill Lofi song | Baseline rank | Baseline score | Experiment rank | Experiment score |
 |---|---:|---:|---:|---:|
 | Spacewalk Thoughts | 4 | 1.97 | 3 | 2.94 |
 | Focus Flow | 3 | 2.85 | 4 | 2.70 |
 
-Spacewalk Thoughts moved ahead because it matched the chill mood and
-its energy of `0.28` was close to the `0.25` target.
+Spacewalk Thoughts benefited from its chill mood and energy close to
+the target. Library Rain stayed first.
 
-Library Rain stayed first for Chill Lofi. The top-five order for
-High-Energy Pop and Deep Intense Rock stayed the same, although scores
-changed.
+High-Energy Pop and Deep Intense Rock retained their top-five order.
 
 ### Project 4 Automated Tests
 
-The fresh-clone verification reported:
+After adding the visual interface:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-41 passed in 1.23s
+41 passed in 1.05s
 ```
 
-Test duration varies between runs.
+Test duration varies.
 
-The suite covers:
+Coverage includes:
 
-- Original recommendation behavior.
+- Original ranking behavior.
 - Request validation.
 - Guide retrieval and parsing.
-- Studying genre, mood, and energy constraints.
+- Studying constraints.
 - Model-output validation.
 - Listener approval behavior.
-- Instrumentalness tie-breaking before result truncation.
-- Primary relevance taking priority over instrumentalness.
-- Conversion of simulated connection failures into handled errors.
-- CLI fallback after a simulated connection failure.
+- Instrumentalness tie-breaking.
+- Score priority over instrumentalness.
+- Simulated connection-failure handling.
+- CLI catalog fallback.
 
-Model-output and connection-failure tests use simulated responses
-or errors. They make no live Gemini requests.
+These tests do not automate browser interactions or make live Gemini
+requests.
 
 ### Instrumentalness Test
 
-A controlled test supplies three lofi tracks:
+| Track | Mood | Energy | Instrumentalness |
+|---|---|---:|---:|
+| Lower Instrumentalness | chill | 0.35 | 0.10 |
+| Higher Instrumentalness | chill | 0.35 | 0.90 |
+| Stronger Mood Match | focused | 0.35 | 0.00 |
 
-| Track | Mood | Energy | Instrumentalness | Expected role |
-|---|---|---:|---:|---|
-| Lower Instrumentalness | chill | 0.35 | 0.10 | Lower priority among equal primary scores |
-| Higher Instrumentalness | chill | 0.35 | 0.90 | Preferred among equal primary scores |
-| Stronger Mood Match | focused | 0.35 | 0.00 | First because of its higher primary score |
-
-For a request for two tracks, the test verifies this order:
+For two requested tracks, the test verifies:
 
 ```text
 Stronger Mood Match
 Higher Instrumentalness
 ```
 
-This confirms that primary relevance ranks first and that instrumentalness
-is applied before selecting the final number of results.
+This checks primary relevance and tie-breaking before truncation.
 
 ### Simulated Network-Failure Tests
 
-| Test | Failure simulated | Verified behavior |
+| Test | Simulated failure | Verified behavior |
 |---|---|---|
-| Model-client error handling | Connection error during generation | Raises a handled application error |
-| CLI fallback | Connection error during client creation | Displays fallback notice and catalog recommendations |
+| Model client | Connection error during generation | Handled application error |
+| CLI fallback | Connection error during client creation | Fallback notice and catalog recommendations |
 
-The CLI test checks for the fallback notice and the presence of Neon Tide,
-Storm Runner, and Gym Hero. It also confirms that the output does not
-report successful Gemini generation.
+The CLI test checks for Neon Tide, Storm Runner, and Gym Hero and
+confirms that successful Gemini generation is not reported.
 
-### Project 4 CLI Evaluation Harness
+### CLI Evaluation Harness
 
 ```cmd
 python evaluate.py
@@ -525,37 +562,52 @@ Summary: 8/8 cases passed
 Pass rate: 100%
 ```
 
-The 100% result applies to these eight predefined cases. The harness
-also passed in the fresh clone.
+This result applies to the eight predefined cases. The harness passed
+both in the fresh clone and after adding the visual interface.
 
-### Observed Guardrail and Workflow Behavior
+### Manual Visual-Interface Evaluation
 
-| Input or condition | Evaluation criterion | Observed result |
+Launch command:
+
+```cmd
+python -m streamlit run streamlit_app.py
+```
+
+| Scenario | Evaluation criterion | Observed result |
 |---|---|---|
-| Blank request | Explain the required input | Pass — validation message displayed |
-| Request for zero songs | Enforce count range | Pass — request rejected |
-| Unknown studying genre | Explain unavailable genre | Pass — request rejected |
-| Three calm jazz songs, answer N | Preserve requested genre | Pass — Coffee Shop Stories only |
-| Three calm jazz songs, answer y | Broaden only after approval | Pass — jazz match plus two eligible lofi tracks |
-| End-of-input at approval | Preserve original constraint | Pass — broader search not authorized |
-| Three calm lofi songs | Avoid unnecessary approval | Pass — three exact matches returned |
-| Equal primary scores | Apply instrumental preference | Pass in controlled automated test |
-| Higher primary relevance | Preserve score priority | Pass in controlled automated test |
-| Model returns unknown or duplicate IDs | Reject invalid response | Pass in simulated-response tests |
-| API returns 503 or 504 | Show an identified fallback | Pass in observed live runs |
-| Connection error during generation | Convert into handled error | Pass in simulated test |
-| Connection error during client creation | Display CLI catalog fallback | Pass in simulated test |
+| Workout, three tracks | Display expected recommendations | Pass — Neon Tide, Storm Runner, Gym Hero |
+| Workout summary | Correct playlist metrics | Pass — three tracks, three artists, average energy 0.91 |
+| Studying jazz, keep genre | Preserve jazz | Pass — Coffee Shop Stories only |
+| Studying jazz, approve alternatives | Include eligible alternatives | Pass — Coffee Shop Stories, Focus Flow, Library Rain |
+| Broader studying summary | Correct metrics | Pass — three tracks, three artists, average energy 0.37 |
+| Catalog evidence | Display source attributes | Visually inspected |
+| CSV download | Export displayed tracks | User confirmed successful |
+| Clear results | Remove displayed results | User confirmed successful |
+| AI explanations | Generate through the visual interface | User confirmed successful |
+| Embedded background | Render without separate image assets | Visually inspected |
 
-### Live Generation Evidence
+Python syntax compilation also succeeded:
 
-Successful live runs were verified for:
+```cmd
+python -m py_compile streamlit_app.py
+```
 
-- Workout explanations.
-- Lofi studying explanations.
-- Approved cross-genre studying explanations.
-- Specialized workout explanations.
+### Observed Guardrail Behavior
 
-Recorded evidence includes:
+| Condition | Expected behavior | Observed result |
+|---|---|---|
+| Blank request | Explain required input | Pass |
+| Zero requested tracks | Reject invalid count | Pass |
+| Unknown studying genre | Explain unavailable genre | Pass |
+| Declined broadening | Preserve requested genre | Pass |
+| Missing approval input | Preserve requested genre | Pass |
+| Enough exact matches | Avoid approval prompt | Pass |
+| Unknown or duplicate model IDs | Reject response | Pass in simulated tests |
+| API 503/504 | Identify catalog fallback | Pass in observed live runs |
+| Connection error | Handle failure and preserve recommendations | Pass in simulated tests |
+| Numeric wording | Distinguish nearby and exact values | Needs further improvement |
+
+### Recorded Evidence
 
 - [Workout AI execution](evidence/workout_ai.txt)
 - [Declined studying search](evidence/studying_declined.txt)
@@ -564,33 +616,28 @@ Recorded evidence includes:
 - [Automated test log](evidence/tests.txt)
 - [CLI evaluation summary](evidence/evaluation.txt)
 
-The studying execution logs were recorded before instrumentalness
-tie-breaking was added. They document approval and generation behavior
-at that stage.
+Earlier studying logs predate instrumentalness tie-breaking.
 
 ### Fresh-Clone Verification
 
-I cloned revision `2ce6823` into a separate folder,
-`playlist-intelligence-verify`, and created a new virtual environment.
+I cloned revision `2ce6823` into `playlist-intelligence-verify` and created
+a new environment using Python 3.13.9 on Windows.
 
-I installed dependencies from `requirements.txt` using Python 3.13.9
-on Windows.
+This revision preceded the Streamlit interface.
 
-| Check | Observed result |
+| Check | Result |
 |---|---|
 | Dependency installation | Successful |
 | `python -m pip check` | No broken requirements found |
 | `python -m pytest -q` | 41 passed in 1.23s |
 | `python evaluate.py` | 8/8 cases passed |
-| Studying CLI request | Expected three tracks returned |
-
-The command used for the catalog demonstration was:
+| Studying request | Expected three tracks returned |
 
 ```cmd
 python -m src.main --request "3 calm lofi songs for studying"
 ```
 
-The observed order was:
+Condensed observed results:
 
 ```text
 1. Focus Flow | Score: 3.95 | Instrumentalness: 0.82
@@ -598,12 +645,10 @@ The observed order was:
 3. Midnight Coding | Score: 2.93 | Instrumentalness: 0.88
 ```
 
-This is a condensed summary of the displayed table. The output also
-included ranking reasons, genre status, and the studying guide source.
+The output also included reasons, genre status, and the guide source.
 
-This verification covered installation, dependency compatibility,
-automated checks, and catalog recommendations. Live generation was
-verified separately during development.
+Live Gemini generation and the visual interface were checked separately
+during development.
 
 ---
 
@@ -611,24 +656,23 @@ verified separately during development.
 
 ### Method
 
-I compared baseline and specialized prompts using
-`gemini-3.5-flash-lite`.
+I compared prompts using `gemini-3.5-flash-lite`.
 
 Both runs used:
 
-- The request `Give me 3 upbeat songs for a workout`.
-- The same three retrieved tracks.
+- `Give me 3 upbeat songs for a workout`.
+- The same selected tracks.
 - The same workout guide.
 - The same model, output limit, and validation.
 
-The specialized prompt added illustrative few-shot examples and requested
-concise explanations with explicit mood and energy labels.
+The specialized prompt added illustrative few-shot examples and
+requested concise, labeled evidence.
 
 ```cmd
 python compare_prompts.py
 ```
 
-This experiment used one live generation per style.
+The experiment used one generation per style.
 
 ### Observed Results
 
@@ -638,10 +682,9 @@ This experiment used one live generation per style.
 | Specialized | 16.0 | 3/3 | 3/3 | 3/3 |
 
 Average explanation length decreased by approximately **31%**.
-Both styles stayed within 25 words.
 
-All three specialized explanations used the requested labels with
-the correct catalog values.
+Both styles stayed within 25 words. All specialized explanations used
+the requested labels with correct catalog values.
 
 ### Baseline Example — Neon Tide
 
@@ -653,16 +696,13 @@ the correct catalog values.
 
 ### Interpretation
 
-The specialized prompt produced shorter explanations with consistently
-labeled evidence in this experiment.
+The specialized output was shorter and consistently labeled.
 
-The baseline also described the correct mood and energy values.
-Label scores measure compliance with the requested style. Overall
-factual accuracy requires separate review.
+The baseline also described correct mood and energy values. Label
+scores measure style compliance. Factual accuracy requires separate review.
 
-Word counts exclude source references appended by the application.
-Both styles use the same selected songs, so this comparison measures
-explanation behavior.
+Word counts exclude appended source references. The selected tracks were
+the same in both runs.
 
 ### Application Integration
 
@@ -670,10 +710,12 @@ explanation behavior.
 python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --specialized
 ```
 
-### Full Comparison Evidence
+The Streamlit interface exposes the same setting through its concise
+curator style checkbox.
 
-Actual outputs and measurements are saved in
-[evidence/prompt_comparison.md](evidence/prompt_comparison.md).
+### Full Evidence
+
+[Actual outputs and measurements](evidence/prompt_comparison.md)
 
 ---
 
@@ -681,43 +723,42 @@ Actual outputs and measurements are saved in
 
 ### Overstating Recommendation Quality
 
-A user could interpret a high score as a guarantee that a track is suitable
-or enjoyable.
+A user could treat a high score as a guarantee of suitability or enjoyment.
 
-The documentation explains that scores come from rules and illustrative
-metadata. Listener feedback would be needed to assess enjoyment.
+Documentation explains the scoring rules and illustrative metadata.
+Listener feedback would be needed to assess enjoyment.
 
-### Unsupported Claims in Generated Text
+### Unsupported Generated Claims
 
-Generated explanations could introduce unsupported statements about lyrics,
-health, or performance.
+Explanations could introduce unsupported claims about lyrics, health,
+or performance.
 
-The prompt restricts explanations to retrieved facts and excludes invented
-health effects. Output validation checks IDs and format. Manual factual
-review remains necessary.
+The prompt restricts explanations to retrieved facts. Output validation
+checks IDs and format. Factual review remains necessary.
 
-### Ignoring Listener Preferences
+### Ignoring Preferences
 
-An application could silently replace a requested genre when exact
-matches are scarce.
+Silently broadening a genre could undermine the request.
 
-This application asks before broadening a studying search. Declining
-or providing no approval preserves the original genre constraint.
+Both interfaces require listener approval before broadening a studying
+search.
 
 ### API Credential Exposure
 
-The application reads the API key from an environment variable.
-The key should be kept out of source files, screenshots, execution
-evidence, and Git commits.
+The key is read from an environment variable. It should be kept out
+of source files, screenshots, evidence, and commits.
 
 ### Retrieved Content Quality
 
-Editing the guide changes system behavior. Invalid or incomplete energy
-rules can be rejected, but the application cannot determine whether every
-well-formed rule is appropriate.
+Guide edits change behavior. Parsing rejects some malformed rules but
+does not assess whether a rule is appropriate for listeners.
 
-The catalog and guide should be reviewed when changed, followed by the
-test suite and evaluation harness.
+Changes should be reviewed and followed by tests and evaluation.
+
+### Exported Results
+
+CSV downloads contain displayed catalog records and explanations.
+They may therefore include the same wording inaccuracies as the screen.
 
 ---
 
@@ -725,156 +766,135 @@ test suite and evaluation harness.
 
 ### How I Used AI
 
-I used an AI assistant to plan the project, reuse existing ranking code,
-write Python modules, design tests, interpret errors, and prepare
+I used an assistant to plan the project, reuse ranking code, write
+modules, design tests, interpret errors, build the interface, and prepare
 documentation.
 
-I copied proposed changes into VS Code, ran commands, and shared their
-outputs for review. I checked recommendations and test results throughout
-development.
+I applied code in VS Code, ran commands, checked browser behavior, and
+shared outputs for review.
 
 ### One Suggestion I Accepted
 
-I accepted the suggestion to reuse the existing Python ranking function
-and give Gemini the selected tracks and retrieved guidance.
+I accepted reusing Python ranking and giving Gemini the selected tracks
+and retrieved guide.
 
-This kept selection understandable through numeric scores while adding
-natural-language explanations grounded in catalog evidence.
+This made selection inspectable through scores while adding readable
+explanations.
 
-I also accepted a human approval step before broadening a studying request
-because it gives the listener control over a meaningful change.
+I also accepted approval before broadening a studying search so listeners
+control that preference change.
 
 ### One Suggestion I Revised
 
-The initial workout filter used high energy as its main suitability
-condition. It selected Winter Signal, which has sad and melancholic tags.
+The initial workout filter relied on high energy and selected Winter
+Signal, which has sad and melancholic tags.
 
-I applied a revision that requires both sufficient energy and a suitable
-mood from the retrieved guide. The revised playlist excluded Winter Signal
-and returned Neon Tide, Storm Runner, and Gym Hero.
+I applied a revision requiring a suitable mood as well as sufficient
+energy. The revised playlist excluded Winter Signal and returned Neon
+Tide, Storm Runner, and Gym Hero.
 
-This changed an early AI-assisted implementation after inspecting its
-actual output.
+This revised an early AI-assisted implementation after inspecting output.
 
 ### What Surprised Me During Reliability Testing
 
-A high-energy track could pass a workout filter while conflicting with
-the request's upbeat mood. A numeric match could miss part of the
-listener's intent.
+High energy could satisfy a numeric condition while conflicting with
+the request's upbeat mood.
 
-I also observed that a successful API connection test did not guarantee
-that later generation requests would succeed. Service errors made
-fallback behavior necessary.
+A successful API connection test also did not guarantee later generation.
+Service failures made fallback behavior necessary.
 
 ### What I Learned About Verification
 
-I encountered a pytest collection error because the assistant used the
-reserved parameter name `request`. Renaming it to `playlist_request`
-fixed collection.
+A reserved pytest parameter name caused collection failure. Renaming
+`request` to `playlist_request` fixed it.
 
-Testing exposed an indentation problem that prevented studying requests
-from reaching their intended handler.
+An indentation problem prevented studying dispatch. Running the request
+revealed the issue.
 
-The instrumentalness test verifies that a secondary preference can affect
-selection among equal scores while primary relevance takes priority.
+Controlled tests checked tie-breaking and simulated connection failures.
 
-Simulated connection errors verify failure handling without depending
-on a live service outage.
-
-Fresh-clone verification checked that the committed project could install
-and run in a new environment.
-
-These experiences reinforced the need to run suggested code and inspect
-its behavior before accepting it as complete.
+A fresh clone checked installation and CLI behavior. Browser checks
+then verified the visual interface separately.
 
 ### System Design Trade-Offs
 
-Python rules make ranking and constraint checks reproducible. Limited
-request patterns and fixed preferences reduce flexibility.
+Rules make ranking reproducible but limit flexible interpretation.
 
-Gemini makes explanations easier to read, but introduces latency,
-service dependencies, and possible wording errors.
+Gemini improves readability but introduces latency, external dependency,
+and wording risks.
 
-Human approval adds an interaction when matches are scarce. That
-interaction makes a change to the listener's preference explicit.
+Approval adds an interaction when exact matches are scarce.
 
-Instrumentalness tie-breaking applies a secondary preference without
-adding a new numeric score bonus. Its influence is limited to equal
-primary scores.
+Instrumentalness tie-breaking influences equal primary scores without
+adding a score bonus.
 
-Fallback explanations preserve access to catalog recommendations during
-handled generation failures.
+The visual interface improves access to controls and evidence but adds
+session-state and presentation behavior that needs separate verification.
 
 ### Personal Reflection
 
-My original learning moment was seeing Gym Hero rank above Rooftop Lights
-for High-Energy Pop. The genre bonus was worth more than the mood match,
-which explained a result I had not expected.
+Seeing Gym Hero outrank Rooftop Lights originally taught me how scoring
+weights influence apparently personal recommendations.
 
-Project 4 extended that lesson. Retrieval, ranking, generation, and
-verification each need to serve the listener's request. An explanation
-can sound reasonable while a filter is incomplete, and a working API call
-can be followed by a service failure.
+Project 4 showed that retrieval, ranking, explanation, and verification
+must all serve the request. An explanation can sound reasonable while
+a filter misses intent.
 
-I learned to inspect outputs, revise assumptions, test failure cases,
-and keep evidence of decisions made during development.
+I learned to inspect outputs, revise assumptions, test failures, and
+document evidence. Presenting the workflow visually also helped me make
+approval decisions and recommendation evidence clearer to listeners.
 
 ---
 
 ## 11. Future Improvements
 
 - Add dedicated timeout tests and broader network-failure scenarios.
-- Expand factual checks for generated explanations, including numeric
-  comparisons and approved-alternative wording.
-- Test instrumentalness preference activation and missing metadata
-  more extensively.
-- Evaluate more requests and repeat prompt comparisons across runs.
+- Expand factual checks for explanations and numeric comparisons.
+- Add automated Streamlit interaction and export tests.
+- Test session behavior across changed preferences and approval decisions.
+- Test instrumentalness activation and missing metadata more extensively.
+- Repeat prompt comparisons across more requests.
 - Support multiple preferred genres and moods.
-- Collect listener feedback to compare ranking strategies.
-- Add a visual interface that reuses the tested recommendation logic.
+- Collect listener feedback.
 - Verify setup and execution on macOS and Linux.
-- Expand the catalog in future versions after reviewing coverage and
-  metadata quality.
+- Expand catalog coverage after reviewing metadata quality.
 
 ---
 
 ## 12. Reproducibility and Supporting Files
 
-Development and fresh-clone verification used
-**Python 3.13.9 on Windows**.
+Development used **Python 3.13.9 on Windows**.
 
-The verified live model for the recorded comparison is
-`gemini-3.5-flash-lite`. Model access and availability can change.
+The verified live model was `gemini-3.5-flash-lite`. Access and availability
+can change.
 
-Configuration uses the `GEMINI_API_KEY` and `GEMINI_MODEL`
-environment variables.
+Configuration uses `GEMINI_API_KEY` and `GEMINI_MODEL`.
 
 Dependencies include `pandas`, `pytest`, `streamlit`, `google-genai`,
-and `httpx2`. Dependencies are currently unpinned, so future installations
-may resolve different package versions.
+and `httpx2`. They are unpinned.
 
-Fresh-clone installation, dependency checks, automated tests, CLI
-evaluation, and a catalog-based studying request were verified on Windows
-at revision `2ce6823`.
+Fresh-clone verification covered revision `2ce6823`. The visual interface
+was added and manually checked afterward.
 
 | File | Purpose |
 |---|---|
-| `README.md` | Setup, commands, demonstrations, and project overview |
-| `data/songs.csv` | Existing 18-song catalog |
-| `data/curation_guides.md` | Custom activity guidance |
-| `src/recommender.py` | Song scoring and ranking |
-| `src/curator.py` | Workout handling and activity routing |
-| `src/study_curator.py` | Studying filters, instrumentalness tie-breaking, and approved genre broadening |
-| `src/guide_retriever.py` | Guide-section retrieval |
-| `src/llm_client.py` | Model generation, network-error handling, and response validation |
+| `README.md` | Setup, commands, demonstrations, and overview |
+| `streamlit_app.py` | Visual interface, approval controls, metrics, evidence, and export |
+| `data/songs.csv` | Existing catalog |
+| `data/curation_guides.md` | Activity guidance |
+| `src/recommender.py` | Scoring and ranking |
+| `src/curator.py` | Workout handling and routing |
+| `src/study_curator.py` | Studying rules and approved broadening |
+| `src/guide_retriever.py` | Guide retrieval |
+| `src/llm_client.py` | Generation, network handling, and validation |
 | `src/prompts.py` | Baseline and specialized prompts |
-| `tests/` | Automated behavior checks |
-| `evaluate.py` | Predefined CLI evaluation cases |
+| `tests/` | Automated checks |
+| `evaluate.py` | CLI evaluation |
 | `compare_prompts.py` | Live prompt comparison |
-| `diagrams/architecture.mmd` | Required Mermaid architecture source |
+| `diagrams/architecture.mmd` | Mermaid architecture source |
 | `ai_interactions.md` | Development history and workflow traces |
-| `evidence/` | Recorded executions and comparison results |
+| `evidence/` | Recorded executions and comparisons |
 
-The Project 4 README and Mermaid architecture source have been created.
-Final documentation checks, refreshed execution evidence, and the
-presentation are still pending.
+The visual interface, README, and updated architecture source have been
+prepared. Final documentation checks, refreshed execution evidence, and
+the presentation remain in progress.
