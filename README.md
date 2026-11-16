@@ -99,7 +99,7 @@ catalog-based fallback.
 Connection failures and network timeouts are converted into a handled
 error that also triggers the fallback. Simulated tests verify
 connection-failure handling in the model client and CLI. A dedicated
-timeout-specific test remains pending.
+timeout-specific test remains a future improvement.
 
 Structural checks validate response format and IDs. Factual accuracy
 of generated sentences requires additional review.
@@ -154,7 +154,8 @@ The original three-profile demo is a separate CLI path.
 
 ### Requirements
 
-Development was verified with **Python 3.13.9 on Windows**.
+Development and fresh-clone verification used
+**Python 3.13.9 on Windows**.
 
 The dependency file contains:
 
@@ -200,8 +201,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Development verification has been performed on Windows. Other platforms
-still need a complete setup check.
+The complete setup has been verified on Windows. Other platforms
+still need a full execution check.
 
 ### 3. Confirm the Interpreter
 
@@ -217,6 +218,18 @@ should print `True`.
 ```cmd
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+```
+
+Check dependency compatibility:
+
+```cmd
+python -m pip check
+```
+
+Observed fresh-environment result:
+
+```text
+No broken requirements found.
 ```
 
 ### 5. Run Without Gemini
@@ -333,10 +346,9 @@ The following excerpts come from observed executions. Table columns and
 wrapped lines are condensed for readability. Full recorded logs are
 linked below.
 
-The studying excerpts were recorded before the instrumentalness
-tie-break was added. They document approval and generation behavior
-at that stage. Current catalog-based studying explanations also include
-instrumentalness evidence.
+The approval examples were recorded before the instrumentalness
+tie-break was added. A current catalog-based studying example appears
+in the fresh-clone verification section.
 
 Live explanations can vary across runs.
 
@@ -488,6 +500,7 @@ API requests.
 - [Declined studying search](evidence/studying_declined.txt)
 - [Approved studying search](evidence/studying_approved.txt)
 - [Approved studying search with AI](evidence/studying_approved_ai.txt)
+- [Automated test log](evidence/tests.txt)
 - [Evaluation summary](evidence/evaluation.txt)
 - [Baseline and specialized comparison](evidence/prompt_comparison.md)
 
@@ -495,16 +508,17 @@ API requests.
 
 ### Automated Tests
 
-Latest verified result after adding network-failure handling and CLI
-fallback tests:
+The fresh-clone verification reported:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-41 passed in 0.89s
+41 passed in 1.23s
 ```
+
+Test duration varies between runs.
 
 Coverage includes:
 
@@ -677,7 +691,7 @@ Earlier experiments and detailed profile comparisons remain documented
 in [model_card.md](model_card.md) and
 [ai_interactions.md](ai_interactions.md).
 
-## Limitations and Remaining Work
+## Limitations and Future Improvements
 
 - The catalog is small and contains illustrative metadata.
 - Request parsing supports specific documented patterns.
@@ -690,9 +704,65 @@ in [model_card.md](model_card.md) and
 - Missing instrumentalness values default to `0.0`.
 - Dedicated timeout tests and broader failure-condition testing remain
   future improvements.
-- Dependencies are currently unpinned. Exact package-version reproduction
-  has not yet been established.
-- Final setup verification from a fresh clone is pending.
+- Dependencies are currently unpinned, so future installations may use
+  different package versions.
+- Full setup verification on macOS and Linux remains future work.
+
+## Fresh-Clone Verification
+
+I cloned the GitHub repository into `playlist-intelligence-verify`,
+created a new virtual environment, and installed dependencies from
+`requirements.txt` using Python 3.13.9 on Windows.
+
+The verified repository revision was `2ce6823`.
+
+| Check | Observed result |
+|---|---|
+| Dependency installation | Successful |
+| `python -m pip check` | No broken requirements found |
+| `python -m pytest -q` | 41 passed in 1.23s |
+| `python evaluate.py` | 8/8 cases passed |
+| Studying CLI request | Focus Flow, Library Rain, and Midnight Coding returned |
+
+The command-line demonstration used:
+
+```cmd
+python -m src.main --request "3 calm lofi songs for studying"
+```
+
+Observed output excerpt:
+
+```text
+Loaded songs: 18
+
+Playlist request: 3 calm lofi songs for studying
+Explanation mode: catalog scoring
+
+Focus Flow | Score: 3.95
+genre match (+2.00), mood match (+1.00), energy similarity (+0.95);
+studying guide match (energy 0.40, mood focused);
+instrumentalness 0.82 (tie-break preference);
+genre status: requested genre;
+source: data/curation_guides.md#studying
+
+Library Rain | Score: 3.00
+genre match (+2.00), energy similarity (+1.00);
+studying guide match (energy 0.35, mood chill);
+instrumentalness 0.92 (tie-break preference);
+genre status: requested genre;
+source: data/curation_guides.md#studying
+
+Midnight Coding | Score: 2.93
+genre match (+2.00), energy similarity (+0.93);
+studying guide match (energy 0.42, mood chill);
+instrumentalness 0.88 (tie-break preference);
+genre status: requested genre;
+source: data/curation_guides.md#studying
+```
+
+This verification covered installation, dependency compatibility,
+automated checks, and catalog recommendations. Live Gemini calls were
+verified separately during development.
 
 ## Reflection
 

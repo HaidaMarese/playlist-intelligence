@@ -97,12 +97,12 @@ These are paraphrases of my requests during the coding session.
 
 **What did the agent generate or change?**
 
-- In `src/recommender.py`, the assistant proposed a `SCORING_MODES`
-  dictionary that maps each mode to its genre, mood, and energy weights.
-- It updated `score_song()` to use the selected weights in both the score
-  and its explanation.
+- The assistant proposed a `SCORING_MODES` dictionary in
+  `src/recommender.py` that maps modes to genre, mood, and energy weights.
+- It updated `score_song()` to use the selected weights in the score
+  and explanation.
 - It updated `recommend_songs()` to pass the mode to `score_song()`.
-- In `src/main.py`, it added `argparse` support for `--mode` and set
+- It added `argparse` support for `--mode` in `src/main.py`, with
   `genre-first` as the default.
 
 **What did you verify or fix manually?**
@@ -111,9 +111,8 @@ I fixed a circular import after the CLI import ended up in
 `src/recommender.py`. I kept that import in `src/main.py`, where the CLI
 uses it, and kept the scoring definitions in `src/recommender.py`.
 
-I ran `python -m src.main` and `python -m src.main --mode energy-focused`.
-Both runs loaded 18 songs. I compared the Chill Lofi rankings and checked
-that each explanation showed the points awarded in the selected mode.
+I ran both scoring modes. Both runs loaded 18 songs. I compared the
+Chill Lofi rankings and checked the scoring explanations.
 
 | Song | Genre-First | Energy-Focused |
 |---|---|---|
@@ -136,11 +135,9 @@ rankings when the flag is omitted.
 
 **What did the agent generate or change?**
 
-- In `src/main.py`, the assistant added the `--diversity` flag and passed
-  it to `recommend_songs()` along with the selected scoring mode.
-- In `src/recommender.py`, it updated `recommend_songs()` to score each
-  song once and select recommendations one at a time when diversity is
-  enabled.
+- It added the `--diversity` flag and passed it to `recommend_songs()`.
+- It updated ranking to score each song once and select tracks one
+  at a time when diversity is enabled.
 - A candidate receives one 0.50-point deduction if its artist already
   appears in the selected results.
 - Selection uses the adjusted score, preserves CSV order for ties,
@@ -162,25 +159,24 @@ python -m pytest
 The default run loaded 18 songs and matched the Project 3 baseline.
 
 For Chill Lofi, Midnight Coding was selected before Focus Flow. Both
-tracks are by LoRoom, so Focus Flow received the penalty in each scoring
-mode when diversity was enabled.
+tracks are by LoRoom, so Focus Flow received the penalty in each mode.
 
 | Scoring mode | Focus Flow without diversity | Focus Flow with diversity |
 |---|---|---|
 | Genre-First | #3, 2.85 | #3, 2.35 |
 | Energy-Focused | #4, 2.70 | #4, 2.20 |
 
-Both diversity runs displayed `artist diversity penalty (-0.50)` in
-Focus Flow's explanation. Its score dropped by 0.50 and its rank stayed
-the same within each mode. Both starter tests passed at this stage.
+Both diversity runs displayed `artist diversity penalty (-0.50)`.
+Focus Flow's score dropped by 0.50 and its rank stayed the same within
+each mode. Both starter tests passed at this stage.
 
 ### Optional Challenge 4 — Visual Summary Table
 
 **What task did you give the agent?**
 
 I asked the VS Code coding assistant to add an optional table view for
-the top five recommendations. I wanted the table to make scores and
-reasons easier to compare across songs.
+the top five recommendations. I wanted scores and reasons to be easier
+to compare across songs.
 
 **Prompts used**
 
@@ -189,8 +185,8 @@ reasons easier to compare across songs.
 **What did the agent generate or change?**
 
 The assistant added `--table` and a `print_recommendation_table()` helper
-in `src/main.py`. The helper formats recommendation results as five
-aligned columns and wraps long explanations under Reasons.
+in `src/main.py`. It formats results as five aligned columns and wraps
+long explanations under Reasons.
 
 **What did you verify or fix manually?**
 
@@ -201,13 +197,12 @@ python -m src.main --mode energy-focused --diversity --table
 python -m pytest
 ```
 
-I confirmed that the default run loaded 18 songs and printed the
-original list. The table showed all five columns for all three profiles.
-The baseline table matched the list rankings and scores.
+The default command loaded 18 songs and printed the original list.
+The table showed all five columns for all three profiles. Its rankings
+and scores matched the list output.
 
-In the combined run, Focus Flow ranked fourth for Chill Lofi with
-a score of 2.20. Its wrapped explanation included
-`artist diversity penalty (-0.50)`.
+In the combined run, Focus Flow ranked fourth for Chill Lofi at 2.20.
+Its explanation included `artist diversity penalty (-0.50)`.
 
 Both starter tests passed at this stage.
 
@@ -222,331 +217,283 @@ supplies a named set of weights to the same scoring function.
 
 **How did AI help you brainstorm or implement it?**
 
-The assistant suggested a dictionary of named weight sets because both
-modes use the same formula and differ in their weights. This let me
-reuse the scoring and ranking code and keep Genre-First as the default.
+The assistant suggested a dictionary of weight sets because both modes
+use the same formula and differ in their weights. This let me reuse
+the scoring and ranking code.
 
 **How does the pattern appear in the code?**
 
-`SCORING_MODES` in `src/recommender.py` stores the weights in genre, mood,
+`SCORING_MODES` in `src/recommender.py` stores weights in genre, mood,
 and energy order.
 
 - `genre-first` uses `(2.0, 1.0, 1.0)`.
 - `energy-focused` uses `(1.0, 1.0, 2.0)`.
 
-`src/main.py` reads `--mode` and passes it to `recommend_songs()`.
-That function passes the mode to `score_song()`, which calculates and
-explains each contribution.
+`src/main.py` passes the selected mode to `recommend_songs()`, which
+passes it to `score_song()`.
 
-Challenge 1 adds optional feature contributions during scoring.
+Challenge 1 adds feature contributions during scoring.
 Challenge 3 applies the artist penalty during ranking.
-Challenge 4 formats the ranked results for display.
+Challenge 4 formats the ranked results.
 
 ---
 
 ## Project 4 — Playlist Intelligence
 
-> Project 4 extends Project 3, Music Recommender Simulation, using the
-> existing 18-song catalog and scoring functions.
-> Development was guided step by step. I applied the proposed changes
-> in VS Code and ran verification commands myself.
+> Project 4 extends Project 3 using the existing 18-song catalog and
+> scoring functions. Development was guided step by step. I applied
+> proposed changes in VS Code and ran verification commands myself.
 
 ### AI-Assisted Development Workflow
 
 **What task did you give the assistant?**
 
-I asked the assistant to guide me through the final project, including
-the required features and all four optional enhancements.
-
-I requested complete Python files that I could copy into VS Code,
-then ran commands and shared their actual outputs for verification.
+I asked for guidance through the required features and all four optional
+enhancements. I requested complete files that I could copy into VS Code,
+then ran commands and shared their outputs.
 
 **Prompts used**
 
-These are paraphrases of my requests during development.
+These are paraphrases of my requests.
 
-- Extend my existing music recommender to meet the Applied AI System
-  requirements and grading rubric.
-- Give me complete updates to `src/main.py`, `src/curator.py`, and
-  `src/study_curator.py`.
+- Extend my existing recommender to meet the assignment and rubric.
+- Give me complete updates to the Python modules.
 - Explain whether Python or Gemini selects the songs.
-- Keep the existing catalog and continue building on the project.
-- Check our progress against Steps 0–6 and the submission requirements.
-- Update the README, model card, and interaction log to match verified
-  implementation results.
-- Update the model client to handle connection failures and add tests
-  that verify the catalog fallback.
+- Keep the existing catalog.
+- Check our progress against Steps 0–6 and submission requirements.
+- Update documentation to match verified results.
+- Add connection-failure handling and tests.
+- Verify installation and execution from a separate clone.
 
 **What did the assistant generate or change?**
 
-- `src/curator.py` validates workout requests and applies retrieved rules.
-- `src/guide_retriever.py` retrieves activity sections from the custom guide.
+- `src/curator.py` handles workout requests and activity routing.
+- `src/guide_retriever.py` retrieves activity-guide sections.
 - `data/curation_guides.md` defines workout and studying guidance.
-- `src/llm_client.py` generates explanations, validates responses, and
-  converts network errors into handled application errors.
+- `src/llm_client.py` generates and validates explanations and handles
+  network failures.
 - `src/study_curator.py` applies studying rules, instrumentalness
   tie-breaking, and approved genre broadening.
-- `src/main.py` connects requests, retrieval, ranking, approval,
-  generation, fallback, and table output.
+- `src/main.py` connects input, retrieval, approval, generation, and display.
 - `src/prompts.py` builds baseline and specialized prompts.
 - `evaluate.py` evaluates predefined CLI cases.
 - `compare_prompts.py` measures live explanation differences.
-- Automated tests verify recommendation behavior and guardrails.
+- Automated tests verify behavior and guardrails.
 - `diagrams/architecture.mmd` documents the request workflow.
 
 **What did you verify or fix manually?**
 
-I applied the code in VS Code and ran the commands myself.
-
-I corrected an indentation problem that made the studying dispatch
+I corrected an indentation problem that made studying dispatch
 unreachable.
 
-The assistant initially used `request` as a pytest parameter name.
-Pytest rejected that reserved name. I applied the revision using
-`playlist_request`, then reran the suite successfully.
+The assistant initially used the reserved pytest parameter name
+`request`. Renaming it to `playlist_request` fixed collection.
 
-I checked the Python interpreter after package installation used my
-user-wide Python installation. Reactivating the project's `.venv`
-restored the intended interpreter.
+I reactivated the project environment after discovering that package
+installation used my user-wide Python installation.
 
-I removed an unused `energy_pattern` variable from the comparison
-script and applied the corrected regular expressions.
+I removed an unused variable and applied corrected regular expressions
+in the comparison script.
 
-I also corrected a character-encoding problem in the evaluation log
-title by replacing its long dash with a standard hyphen.
+I corrected an encoding issue in the evaluation title by replacing its
+long dash with a standard hyphen.
 
 ### Multi-Source Retrieval and Grounded Generation
 
-**What task did you give the assistant?**
+**What task was addressed?**
 
-I wanted explanations to use both the existing song catalog and custom
-activity guidance.
+I wanted explanations to use the song catalog and custom activity
+guidance.
 
 **What changed in the application?**
 
-The application retrieves records from `data/songs.csv` and an activity
-section from `data/curation_guides.md`.
+Python retrieves the activity guide, applies mood and energy rules,
+and ranks eligible catalog tracks. With `--ai`, Gemini receives those
+tracks, scoring evidence, the request, and the guide.
 
-Python applies the guide's mood and energy rules, then ranks eligible
-tracks. With `--ai`, Gemini receives the selected tracks, scoring
-evidence, listener request, and retrieved guide.
+The response validator checks JSON format, IDs, duplicates, completeness,
+and explanation length.
 
-Python validates returned IDs, duplicates, missing tracks, JSON format,
-and explanation length before displaying generated output.
+**What did you verify?**
 
-**What did you verify manually?**
+The initial energy-only workout filter selected Winter Signal, which
+has sad and melancholic tags. Adding suitable mood rules removed it.
 
-The initial workout filter used energy alone and selected Winter Signal,
-which has sad and melancholic tags.
-
-Adding suitable mood rules removed it from the workout results.
-The revised playlist contained Neon Tide, Storm Runner, and Gym Hero.
-
-| Version | Retrieval and filtering behavior | Observed result |
+| Version | Filtering behavior | Observed result |
 |---|---|---|
 | Initial workout implementation | Energy threshold only | Winter Signal appeared |
-| Revised workout implementation | Retrieved energy and suitable-mood rules | Winter Signal excluded |
-| Stricter guide test | Minimum energy changed from 0.75 to 0.90 | Lower-energy candidate excluded |
+| Revised implementation | Retrieved energy and mood rules | Winter Signal excluded |
+| Stricter guide test | Minimum energy increased from 0.75 to 0.90 | Lower-energy candidate excluded |
 
-I checked the parsed threshold change manually. An automated test
-confirmed that changing the guide affects the resulting selection.
+The revised workout playlist contained Neon Tide, Storm Runner,
+and Gym Hero.
 
-Successful Gemini runs used retrieved mood, energy, and guidance in
-their explanations.
+I checked the threshold change manually. An automated test confirmed
+that changing the guide changes selection.
 
 ```cmd
 python -m src.main --request "Give me 3 upbeat songs for a workout" --ai
 python -m src.main --request "3 calm lofi songs for studying" --ai
 ```
 
-The recorded workout execution is available in
-[evidence/workout_ai.txt](evidence/workout_ai.txt).
+Successful Gemini outputs used retrieved mood, energy, and guidance.
 
-The observed improvement is alignment with the activity rules.
-Listener enjoyment has not been measured.
+[Recorded workout execution](evidence/workout_ai.txt)
+
+The observed improvement is alignment with project rules. Listener
+enjoyment has not been measured.
 
 **What reliability issues did you observe?**
 
-Some generation requests returned 503 high-demand errors or 504 deadline
-errors. The application displayed identified catalog-based fallbacks.
+Some requests returned 503 high-demand or 504 deadline errors. The app
+displayed identified catalog-based fallbacks.
 
-The 2.5 models tested returned messages stating that they were
-unavailable to new users. Successful full playlist generation was
-verified with `gemini-3.5-flash-lite`.
+The tested 2.5 models reported that they were unavailable to new users.
+Successful full generation was verified with `gemini-3.5-flash-lite`.
 
-Generated explanations sometimes used imprecise wording about nearby
-and exact energy values. Structural validation checks format and IDs.
-Factual wording still needs review.
+Some explanations used imprecise wording about nearby and exact energy
+values. Structural validation checks format and IDs. Factual wording
+still requires review.
 
 ### Agentic Workflow Enhancement — Studying Playlist Approval
 
-**What task did you give the assistant?**
+**What task was addressed?**
 
-I wanted the application to detect insufficient exact matches and ask
-the listener before including tracks from other genres.
+I wanted the application to detect insufficient matches and ask before
+including other genres.
 
 **What changed in the application?**
 
-- The initial studying search preserves the requested genre.
-- `src/main.py` checks whether enough tracks match.
-- A shortage triggers a listener approval prompt.
+- The initial search preserves the requested genre.
+- A shortage triggers an approval prompt.
 - Explicit `y` or `yes` authorizes a broader search.
-- Declining, pressing Enter, or reaching end-of-input preserves the
-  original genre.
-- The broader search keeps the studying mood and energy rules.
-- Catalog explanations identify approved alternative genres.
-- Gemini's input includes the listener's approval when applicable.
+- Declining, pressing Enter, or reaching end-of-input preserves genre.
+- Broadening retains the studying mood and energy rules.
+- Catalog explanations label approved alternatives.
+- Gemini's input includes the listener's approval.
 
 **Observed workflow trace**
 
-The following table records actions and decisions observed for
-`3 calm jazz songs for studying`.
+Request — `3 calm jazz songs for studying`
 
 | Step | Action | Observed result | Next decision |
 |---|---|---|---|
-| 1 | Validate the request | Count 3, genre jazz, activity studying | Retrieve the studying guide |
-| 2 | Retrieve guidance | Target energy 0.35, maximum energy 0.50, suitable moods | Filter and rank catalog tracks |
-| 3 | Search within jazz | Coffee Shop Stories is the only match | Request approval for other genres |
-| 4A | Listener enters N | Broadening declined | Return Coffee Shop Stories |
-| 4B | Listener enters y | Broadening approved | Search across genres with the same mood and energy rules |
-| 5B | Rank broader candidates | Coffee Shop Stories, Focus Flow, Library Rain | Label alternative genres and display results |
+| 1 | Validate request | Count 3, genre jazz, activity studying | Retrieve guide |
+| 2 | Retrieve guidance | Target 0.35, maximum 0.50, suitable moods | Filter and rank |
+| 3 | Search jazz | Coffee Shop Stories is the only match | Ask for approval |
+| 4A | Listener enters N | Broadening declined | Return exact match |
+| 4B | Listener enters y | Broadening approved | Search other genres |
+| 5B | Rank broader results | Coffee Shop Stories, Focus Flow, Library Rain | Label and display |
 
 **What did you verify manually?**
 
-I ran the request twice. Answering `N` returned one track. Answering `y`
-returned three.
-
-| Listener decision | Song | Genre | Score | Status |
+| Decision | Song | Genre | Score | Status |
 |---|---|---|---:|---|
 | Decline | Coffee Shop Stories | jazz | 2.98 | Requested genre |
 | Approve | Coffee Shop Stories | jazz | 2.98 | Requested genre |
-| Approve | Focus Flow | lofi | 1.95 | Approved alternative genre |
-| Approve | Library Rain | lofi | 1.00 | Approved alternative genre |
+| Approve | Focus Flow | lofi | 1.95 | Approved alternative |
+| Approve | Library Rain | lofi | 1.00 | Approved alternative |
 
 **Reproducible commands**
-
-Run these from the project root in Windows Command Prompt.
 
 ```cmd
 echo n| python -m src.main --request "3 calm jazz songs for studying"
 echo y| python -m src.main --request "3 calm jazz songs for studying"
 ```
 
-**Saved execution logs**
+**Execution logs**
 
-- [Declined broader search](evidence/studying_declined.txt)
-- [Approved broader search](evidence/studying_approved.txt)
+- [Declined search](evidence/studying_declined.txt)
+- [Approved search](evidence/studying_approved.txt)
 
-These logs capture the catalog-scoring approval workflow before the
-instrumentalness update. The runtime decision chain is implemented in
-Python and includes human approval.
+These logs record the workflow before instrumentalness tie-breaking.
+The decision chain is implemented in Python and includes human approval.
 
 **Historical verification milestone**
 
-After adding approval tests, the suite reported:
+After adding approval tests:
 
 ```text
 32 passed in 0.51s
 ```
 
-| Approval scenario | Verified behavior | Result |
-|---|---|---|
-| Answer n | Preserve jazz only | Pass |
-| Answer N | Preserve jazz only | Pass |
-| Press Enter | Preserve jazz only | Pass |
-| Answer y | Include eligible alternative genres | Pass |
-| Answer YES | Include eligible alternative genres | Pass |
-| Input stream unavailable | Preserve jazz only | Pass |
-| Enough exact lofi matches | Return results without prompting | Pass |
+| Scenario | Verified behavior |
+|---|---|
+| Answer n or N | Preserve jazz |
+| Press Enter | Preserve jazz |
+| Answer y or YES | Include eligible alternatives |
+| Input unavailable | Preserve jazz |
+| Enough exact matches | Avoid approval prompt |
 
 **Gemini verification after approval**
-
-I recorded the approved workflow with AI explanations:
 
 ```cmd
 echo y| python -m src.main --request "3 calm jazz songs for studying" --ai > evidence\studying_approved_ai.txt 2>&1
 ```
 
-The recorded run displayed `Explanation mode: Gemini`.
+The recorded run displayed `Explanation mode: Gemini`. Coffee Shop
+Stories was described as jazz. Focus Flow and Library Rain were
+described as approved lofi alternatives.
 
-Coffee Shop Stories was described as jazz. Focus Flow and Library Rain
-were described as approved lofi alternatives.
-
-The observed output is saved in
-[evidence/studying_approved_ai.txt](evidence/studying_approved_ai.txt).
+[Recorded approved AI execution](evidence/studying_approved_ai.txt)
 
 ### Studying Instrumentalness Preference
 
 **What task was addressed?**
 
-The studying guide said to prefer instrumental tracks when other
-preferences were equal. The implementation initially used only the
-guide's energy and mood rules.
+The guide requested an instrumental preference that the initial
+studying implementation had not applied.
 
 **What changed in the application?**
 
-When the retrieved guide contains the documented instrumental-preference
-sentence, candidates are preordered by descending instrumentalness.
+When the guide contains the documented preference sentence, candidates
+are preordered by descending instrumentalness.
 
-The existing ranker preserves that order for equal primary scores.
-Higher primary relevance ranks first.
+The ranker preserves that order for equal primary scores. Higher
+relevance scores rank first.
 
-Missing instrumentalness values default to `0.0`. Equal scores and equal
+Missing instrumentalness defaults to `0.0`. Equal scores and equal
 instrumentalness preserve catalog order.
-
-Catalog explanations identify the instrumentalness value and tie-break
-preference.
 
 **What did you verify?**
 
-I added a controlled test with three lofi tracks:
-
-| Track | Mood | Energy | Instrumentalness |
+| Test track | Mood | Energy | Instrumentalness |
 |---|---|---:|---:|
 | Lower Instrumentalness | chill | 0.35 | 0.10 |
 | Higher Instrumentalness | chill | 0.35 | 0.90 |
 | Stronger Mood Match | focused | 0.35 | 0.00 |
 
-For a request for two tracks, the verified order was:
+For a two-track request, the test verified:
 
 ```text
 Stronger Mood Match
 Higher Instrumentalness
 ```
 
-The test confirms that primary relevance takes priority and that
-instrumentalness resolves equal scores before results are truncated.
+This checks score priority and tie-breaking before result truncation.
 
 **Historical verification milestone**
-
-After the instrumentalness update:
-
-```cmd
-python -m pytest -q
-```
 
 ```text
 39 passed in 1.19s
 ```
 
-The CLI evaluation also continued to pass all eight cases.
+The evaluation harness also continued to pass eight cases.
 
 ### Specialization Enhancement — Implemented and Measured
 
 **What task was addressed?**
 
-I wanted a specialized explanation style that was concise and made
-catalog evidence easy to identify.
+I wanted concise explanations with clearly labeled catalog evidence.
 
 **What changed in the application?**
 
-- `src/prompts.py` provides baseline and specialized prompts.
-- The specialized prompt includes illustrative few-shot examples.
-- It requests at most 25 words per explanation.
+- `src/prompts.py` provides baseline and few-shot specialized prompts.
+- The specialized style requests at most 25 words.
 - It requests exact mood and two-decimal energy labels.
-- `src/llm_client.py` accepts the optional `specialized` setting.
+- `src/llm_client.py` accepts a `specialized` setting.
 - `src/main.py` exposes `--specialized`, requiring `--ai`.
-- `compare_prompts.py` records live outputs and measurable differences.
+- `compare_prompts.py` records outputs and measurements.
 
 **Application command**
 
@@ -554,7 +501,7 @@ catalog evidence easy to identify.
 python -m src.main --request "Give me 3 upbeat songs for a workout" --ai --specialized
 ```
 
-**Observed specialized example**
+**Observed example**
 
 ```text
 Mood: energizing. Energy: 0.88. Fits a workout and is close to the guide target of 0.90.
@@ -566,8 +513,8 @@ Mood: energizing. Energy: 0.88. Fits a workout and is close to the guide target 
 python compare_prompts.py
 ```
 
-The comparison used `gemini-3.5-flash-lite`, the same request, the same
-three selected tracks, and the same guide for both styles.
+Both styles used `gemini-3.5-flash-lite`, the same request, three selected
+tracks, and retrieved guide.
 
 | Style | Average words | At most 25 words | Correct mood labels | Correct energy labels |
 |---|---:|---:|---:|---:|
@@ -576,41 +523,35 @@ three selected tracks, and the same guide for both styles.
 
 Average length decreased by approximately 31%.
 
-Both styles used correct catalog mood and energy facts in the observed
-outputs. Label scores measure compliance with the specialized style.
-Overall factual accuracy requires separate review.
+Both styles used correct mood and energy facts in the observed outputs.
+Label scores measure style compliance. Overall factual accuracy
+requires separate review.
 
-This comparison used one live generation per style. Results may vary.
+The comparison used one generation per style. Results may vary.
 
-Full outputs are saved in
-[evidence/prompt_comparison.md](evidence/prompt_comparison.md).
-
-The required comparison and interpretation are also documented in
-[model_card.md](model_card.md).
+- [Actual outputs and measurements](evidence/prompt_comparison.md)
+- [Required model-card comparison](model_card.md)
 
 ### Evaluation Harness Enhancement — Implemented and Verified
 
 **What task was addressed?**
 
-I wanted a reproducible script that exercises the real CLI on predefined
-requests and prints a summary.
+I wanted a reproducible script that exercises the CLI and prints results.
 
 **What changed in the application?**
 
 `evaluate.py` launches the CLI using the active Python interpreter,
-supplies predefined inputs, captures output, and checks exit codes and
-expected or excluded text.
+supplies inputs, captures output, and checks exit codes and expected
+or excluded text.
 
-Each case has a timeout. Failed cases print diagnostic information.
-The script returns a nonzero exit code if any case fails.
+Each case has a timeout. Failures print diagnostic information.
+The script returns a nonzero exit code when a case fails.
 
-**Verification command**
+**Observed result**
 
 ```cmd
 python evaluate.py
 ```
-
-**Observed result**
 
 ```text
 Playlist Intelligence - CLI Evaluation
@@ -629,55 +570,46 @@ Summary: 8/8 cases passed
 Pass rate: 100%
 ```
 
-The saved output is available in
-[evidence/evaluation.txt](evidence/evaluation.txt).
+[Saved evaluation output](evidence/evaluation.txt)
 
-This harness verifies its predefined CLI scenarios. Simulated model
-tests and recorded live generation provide separate evidence.
+The harness verifies these predefined CLI scenarios. Model-response
+tests and live generation logs provide additional evidence.
 
 ### Network-Failure Handling
 
 **What task was addressed?**
 
-I wanted connection failures to trigger the catalog fallback instead of
-ending the application with an unhandled traceback.
+I wanted connection failures to trigger the catalog fallback.
 
 **What changed in the application?**
 
-- `src/llm_client.py` catches `httpx2.TransportError` and `OSError`.
-- It converts those errors into a `ValueError` with an actionable message.
-- The existing CLI handler displays the fallback notice and catalog
-  recommendations.
-- `httpx2` is listed as a direct dependency in `requirements.txt`.
+- The model client catches `httpx2.TransportError` and `OSError`.
+- It converts them into a handled `ValueError`.
+- The CLI displays a fallback notice and catalog recommendations.
+- `httpx2` is included in `requirements.txt`.
 
 **What did you verify?**
 
-Two simulated tests exercise different parts of the workflow.
-
 | Test | Simulated failure | Verified behavior |
 |---|---|---|
-| Model-client test | `ConnectError` during generation | Converted into a handled `ValueError` |
-| CLI fallback test | `ConnectError` while creating the client | Fallback notice and catalog recommendations displayed |
+| Model-client test | Connection error during generation | Handled application error |
+| CLI fallback test | Connection error during client creation | Fallback and catalog tracks displayed |
 
-The CLI test verifies that the output includes:
+The CLI test checks this notice:
 
 ```text
 AI explanation unavailable. Showing catalog-based explanations.
 ```
 
-It also verifies that Neon Tide, Storm Runner, and Gym Hero are displayed
-and that the output does not report successful Gemini generation.
+It verifies that Neon Tide, Storm Runner, and Gym Hero remain available
+and that successful Gemini generation is not reported.
 
 These tests make no live API calls.
 
-Network timeout exceptions are covered by the transport-error handler.
-A dedicated timeout-specific test is still pending.
+Timeout exceptions are covered by the transport-error handler.
+A dedicated timeout-specific test remains a future improvement.
 
-**Latest observed suite result**
-
-```cmd
-python -m pytest -q
-```
+**Historical verification milestone**
 
 ```text
 41 passed in 0.89s
@@ -685,42 +617,90 @@ python -m pytest -q
 
 ### Architecture and Documentation
 
-The implemented request workflow is documented in the Mermaid source:
+The request workflow is documented in
+[diagrams/architecture.mmd](diagrams/architecture.mmd).
 
-[diagrams/architecture.mmd](diagrams/architecture.mmd)
+It includes retrieval, ranking, approval, generation, validation,
+fallback, and testing connections.
 
-The diagram includes retrieval, ranking, listener approval, generation,
-output validation, fallback, and testing connections.
+The README includes setup instructions, demonstrations, evaluation,
+and design decisions.
 
-The Project 4 README includes setup instructions, recorded input/output
-examples, guardrail behavior, evaluation results, and design decisions.
+The model card includes limitations, misuse analysis, testing surprises,
+AI collaboration, accepted and revised suggestions, and specialization
+measurements.
 
-The model card contains limitations, misuse analysis, testing surprises,
-AI collaboration, accepted and revised suggestions, and the measured
-specialization comparison.
+### Fresh-Clone Verification — Completed
+
+**What task was addressed?**
+
+I wanted to check that the committed project could install and run
+from GitHub in a separate environment.
+
+**What did I do?**
+
+I cloned revision `2ce6823` into `playlist-intelligence-verify`, created
+a new virtual environment, and installed `requirements.txt` using
+Python 3.13.9 on Windows.
+
+**Verification commands**
+
+```cmd
+python -m pip check
+python -m pytest -q
+python evaluate.py
+python -m src.main --request "3 calm lofi songs for studying"
+```
+
+**Observed results**
+
+| Check | Result |
+|---|---|
+| Dependency installation | Successful |
+| Dependency compatibility | No broken requirements found |
+| Automated tests | 41 passed in 1.23s |
+| CLI evaluation | 8/8 cases passed |
+| Studying recommendations | Expected three tracks returned |
+
+The studying results were:
+
+| Rank | Song | Score | Instrumentalness |
+|---|---|---:|---:|
+| 1 | Focus Flow | 3.95 | 0.82 |
+| 2 | Library Rain | 3.00 | 0.92 |
+| 3 | Midnight Coding | 2.93 | 0.88 |
+
+Output included scoring reasons, genre status, and the studying guide
+source.
+
+This verification covered installation, dependencies, automated checks,
+and catalog execution. Live Gemini generation was verified separately
+during development.
 
 ### Latest Verification Summary
 
 | Check | Latest verified result |
 |---|---|
-| Automated tests | 41 passed |
+| Automated tests | 41 passed in the fresh clone |
 | CLI evaluation harness | 8/8 cases passed |
+| Dependency compatibility | No broken requirements found |
+| Fresh-clone studying request | Expected tracks and evidence displayed |
 | Workout Gemini explanations | Successful recorded run |
 | Studying Gemini explanations | Successful observed run |
-| Approved alternative genres with Gemini | Successful recorded run |
+| Approved alternatives with Gemini | Successful recorded run |
 | Specialized prompt comparison | Outputs and measurements saved |
-| Instrumentalness tie-breaking | Controlled automated test passed |
+| Instrumentalness tie-breaking | Controlled test passed |
 | Model-client connection failure | Simulated test passed |
 | CLI connection-failure fallback | Simulated test passed |
 
-### Remaining Project 4 Verification
+### Remaining Project 4 Work
 
-- Add dedicated timeout tests as a future reliability improvement.
 - Continue factual evaluation of generated explanations.
-- Refresh final execution evidence after remaining code changes.
-- Check documentation for consistency with the final implementation.
+- Add dedicated timeout tests as a future reliability improvement.
+- Refresh final execution evidence after further code changes.
+- Check final documentation consistency.
 - Prepare the 5–7 minute Engineer's Pitch.
 - Finalize presentation materials and review the portfolio reflection.
 - Record and link a Loom walkthrough if included.
-- Verify setup, tests, and execution from a fresh clone.
+- Verify any added visual interface.
 - Commit and push final changes before submission.

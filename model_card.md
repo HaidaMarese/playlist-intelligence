@@ -186,7 +186,7 @@ Two simulated tests verify connection-failure handling:
   and preserves the catalog recommendations.
 
 Network timeout exceptions are covered by the transport-error handler.
-A dedicated timeout-specific test is still pending.
+A dedicated timeout-specific test remains a future improvement.
 
 ---
 
@@ -237,8 +237,7 @@ The workout filter initially considered energy alone and selected
 Winter Signal, which is tagged sad and melancholic.
 
 Adding suitable mood rules removed it from the workout recommendations.
-The verified revised playlist contained Neon Tide, Storm Runner,
-and Gym Hero.
+The revised playlist contained Neon Tide, Storm Runner, and Gym Hero.
 
 An automated test confirms that increasing the retrieved minimum energy
 threshold removes a lower-energy candidate.
@@ -257,11 +256,19 @@ be included while retaining the studying energy and mood restrictions.
 
 ### Grounded Explanations and Fallback
 
-Successful Gemini runs explained selected tracks using their actual
-catalog mood and energy values.
+Successful Gemini runs explained selected tracks using their catalog
+mood and energy values.
 
 Observed API-error runs continued displaying catalog recommendations.
 Simulated connection-failure tests also verified fallback behavior.
+
+### Verified Installation
+
+A separate clone installed successfully on Windows, passed dependency
+checks, passed all 41 tests, and passed all eight CLI evaluation cases.
+
+A studying request also returned the expected tracks with scores,
+instrumentalness evidence, and guide references.
 
 ---
 
@@ -337,14 +344,24 @@ failures. Live AI explanations require a successful model response.
 
 ### Evaluation Scope
 
-Automated tests check defined behaviors. They do not measure listener
-satisfaction or establish reliability across every possible input.
+Automated tests check defined behaviors. Listener satisfaction and
+reliability across all possible inputs require broader evaluation.
 
 Connection-failure checks use simulated errors. Dedicated timeout tests
 and broader network-failure experiments remain future improvements.
 
 The prompt comparison used one request and one generation per style.
-Broader experiments are needed before generalizing the results.
+More experiments are needed before generalizing the results.
+
+### Reproducibility Scope
+
+Fresh-clone installation and catalog execution were verified on Windows.
+
+Live Gemini generation was verified separately during development.
+The fresh-clone verification did not include a live generation request.
+
+Dependencies are unpinned, and full setup checks on macOS and Linux
+remain future work.
 
 ---
 
@@ -426,16 +443,17 @@ changed.
 
 ### Project 4 Automated Tests
 
-The latest verified result after adding network-failure handling and
-CLI fallback tests was:
+The fresh-clone verification reported:
 
 ```cmd
 python -m pytest -q
 ```
 
 ```text
-41 passed in 0.89s
+41 passed in 1.23s
 ```
+
+Test duration varies between runs.
 
 The suite covers:
 
@@ -508,7 +526,7 @@ Pass rate: 100%
 ```
 
 The 100% result applies to these eight predefined cases. The harness
-was rerun successfully after adding model-client network handling.
+also passed in the fresh clone.
 
 ### Observed Guardrail and Workflow Behavior
 
@@ -543,11 +561,49 @@ Recorded evidence includes:
 - [Declined studying search](evidence/studying_declined.txt)
 - [Approved studying search](evidence/studying_approved.txt)
 - [Approved studying search with Gemini](evidence/studying_approved_ai.txt)
+- [Automated test log](evidence/tests.txt)
 - [CLI evaluation summary](evidence/evaluation.txt)
 
 The studying execution logs were recorded before instrumentalness
 tie-breaking was added. They document approval and generation behavior
 at that stage.
+
+### Fresh-Clone Verification
+
+I cloned revision `2ce6823` into a separate folder,
+`playlist-intelligence-verify`, and created a new virtual environment.
+
+I installed dependencies from `requirements.txt` using Python 3.13.9
+on Windows.
+
+| Check | Observed result |
+|---|---|
+| Dependency installation | Successful |
+| `python -m pip check` | No broken requirements found |
+| `python -m pytest -q` | 41 passed in 1.23s |
+| `python evaluate.py` | 8/8 cases passed |
+| Studying CLI request | Expected three tracks returned |
+
+The command used for the catalog demonstration was:
+
+```cmd
+python -m src.main --request "3 calm lofi songs for studying"
+```
+
+The observed order was:
+
+```text
+1. Focus Flow | Score: 3.95 | Instrumentalness: 0.82
+2. Library Rain | Score: 3.00 | Instrumentalness: 0.92
+3. Midnight Coding | Score: 2.93 | Instrumentalness: 0.88
+```
+
+This is a condensed summary of the displayed table. The output also
+included ranking reasons, genre status, and the studying guide source.
+
+This verification covered installation, dependency compatibility,
+automated checks, and catalog recommendations. Live generation was
+verified separately during development.
 
 ---
 
@@ -725,6 +781,9 @@ selection among equal scores while primary relevance takes priority.
 Simulated connection errors verify failure handling without depending
 on a live service outage.
 
+Fresh-clone verification checked that the committed project could install
+and run in a new environment.
+
 These experiences reinforced the need to run suggested code and inspect
 its behavior before accepting it as complete.
 
@@ -773,6 +832,7 @@ and keep evidence of decisions made during development.
 - Support multiple preferred genres and moods.
 - Collect listener feedback to compare ranking strategies.
 - Add a visual interface that reuses the tested recommendation logic.
+- Verify setup and execution on macOS and Linux.
 - Expand the catalog in future versions after reviewing coverage and
   metadata quality.
 
@@ -780,7 +840,8 @@ and keep evidence of decisions made during development.
 
 ## 12. Reproducibility and Supporting Files
 
-Development was verified with **Python 3.13.9 on Windows**.
+Development and fresh-clone verification used
+**Python 3.13.9 on Windows**.
 
 The verified live model for the recorded comparison is
 `gemini-3.5-flash-lite`. Model access and availability can change.
@@ -789,10 +850,12 @@ Configuration uses the `GEMINI_API_KEY` and `GEMINI_MODEL`
 environment variables.
 
 Dependencies include `pandas`, `pytest`, `streamlit`, `google-genai`,
-and `httpx2`. Dependencies are currently unpinned. Exact package-version
-reproduction has not yet been established.
+and `httpx2`. Dependencies are currently unpinned, so future installations
+may resolve different package versions.
 
-Final setup verification from a fresh clone remains pending.
+Fresh-clone installation, dependency checks, automated tests, CLI
+evaluation, and a catalog-based studying request were verified on Windows
+at revision `2ce6823`.
 
 | File | Purpose |
 |---|---|
@@ -813,5 +876,5 @@ Final setup verification from a fresh clone remains pending.
 | `evidence/` | Recorded executions and comparison results |
 
 The Project 4 README and Mermaid architecture source have been created.
-Final documentation checks, refreshed execution evidence, the
-presentation, and fresh-clone verification are still pending.
+Final documentation checks, refreshed execution evidence, and the
+presentation are still pending.
