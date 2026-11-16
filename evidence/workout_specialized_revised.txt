@@ -1,0 +1,80 @@
+Playlist Intelligence - Revised Specialized Workout Evidence
+
+Interface: Streamlit
+Activity: Workout
+Requested songs: 3
+Generate AI explanations: Enabled
+Concise curator style: Enabled
+
+Request: 3 upbeat songs for a workout
+Explanation mode: Gemini · Specialized
+
+Selected tracks: 3
+Distinct artists: 3
+Average energy: 0.91
+Energy scale: 0–1
+
+1. Neon Tide
+Artist: Crystal Harbor
+Catalog ID: 11
+Genre: electronic
+Mood: energizing
+Energy: 0.88
+Relevance score: 1.98
+
+Explanation:
+Mood: energizing. Energy: 0.88. Fits your workout and is close to the guide target of 0.90. [Source: data/curation_guides.md#workout; catalog ID: 11]
+
+2. Storm Runner
+Artist: Voltline
+Catalog ID: 3
+Genre: rock
+Mood: intense
+Energy: 0.91
+Relevance score: 0.99
+
+Explanation:
+Mood: intense. Energy: 0.91. Fits your workout and is slightly above the guide target of 0.90. [Source: data/curation_guides.md#workout; catalog ID: 3]
+
+3. Gym Hero
+Artist: Max Pulse
+Catalog ID: 5
+Genre: pop
+Mood: intense
+Energy: 0.93
+Relevance score: 0.97
+
+Explanation:
+Mood: intense. Energy: 0.93. Fits your workout and is above the guide target of 0.90. [Source: data/curation_guides.md#workout; catalog ID: 5]
+
+Manual Review
+
+The earlier specialized output incorrectly described workout tracks
+as approved alternatives, although no genre approval occurred.
+
+The revised prompt restricts approval wording to studying requests
+where the listener explicitly approved other genres and the track
+differs from the requested genre.
+
+In this observed run:
+- No workout track was described as an approved alternative.
+- Mood and energy labels matched the catalog.
+- Energy comparisons correctly referenced the workout target of 0.90.
+- All three explanations stayed within the 25-word target,
+  excluding appended source references.
+- The selected tracks and ranking scores remained unchanged.
+
+Verification Scope
+
+This file summarizes one successful live Streamlit execution.
+It is a manual transcription, not an automatically captured log.
+Future model responses may vary.
+
+After the prompt update:
+- Python compilation completed without errors.
+- Automated tests: 41 passed in 0.99s.
+- CLI evaluation: 8/8 cases passed.
+- git diff --check reported no whitespace errors.
+
+The earlier baseline-versus-specialized comparison describes the
+previous prompt version. This run does not replace that comparison.
