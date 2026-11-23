@@ -1029,8 +1029,6 @@ The planned 5–7 minute Engineer's Pitch covers:
 The demonstration includes a specialized workout playlist and a studying
 request that requires a listener decision.
 
-Presentation materials and an optional Loom walkthrough remain in
-preparation.
 
 ### Portfolio Reflection
 
